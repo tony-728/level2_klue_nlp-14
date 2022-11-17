@@ -39,7 +39,7 @@ for epoch_num in range(config['epoch']):
         epoch_loss += loss
         loss.backward()
         optimizer.step()
-        metrics = compute_metrics(pred.detach().cpu().numpy(), labels.cpu())
+        metrics = compute_metrics(pred.detach().cpu().numpy(), labels.cpu().numpy())
         print(metrics)
     print("loss: ",float(epoch_loss))
         
