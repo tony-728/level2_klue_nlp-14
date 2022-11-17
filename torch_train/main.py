@@ -6,7 +6,7 @@ from Metric import *
 from Dataset import *
 from Model import Model
 config = {
-    'train_data_path' : './../dataset/train/sample_train.csv',
+    'train_data_path' : '/opt/ml/dataset/train/sample_train.csv',
     'model_name' : "klue/bert-base",
     'epoch' : 1,
     'batch_size' : 32,
