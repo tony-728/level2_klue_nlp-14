@@ -38,6 +38,8 @@ for epoch_num in range(config['epoch']):
         loss = compute_loss(pred, labels.to(device))
         epoch_loss += loss
         loss.backward()
-        metrics = compute_metrics(pred.cpu(), labels.cpu())
+        optimizer.step()
+        metrics = compute_metrics(pred.detach().cpu().numpy(), labels.cpu())
         print(metrics)
+    print("loss: ",float(epoch_loss))
         

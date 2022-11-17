@@ -48,7 +48,7 @@ def klue_re_micro_f1(preds, labels):
 
 def klue_re_auprc(probs, labels):
     """KLUE-RE AUPRC (with no_relation)"""
-    probs = probs.detach().numpy()
+    #probs = probs.detach().numpy()
     labels = np.eye(30)[labels]
     score = np.zeros((30,))
     for c in range(30):
