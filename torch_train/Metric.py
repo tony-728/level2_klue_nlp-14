@@ -1,6 +1,7 @@
 import sklearn
 import numpy as np
 import torch.nn as nn
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 def compute_loss(pred, labels):
     loss = nn.CrossEntropyLoss()
     return loss(pred, labels)
@@ -47,6 +48,7 @@ def klue_re_micro_f1(preds, labels):
 
 def klue_re_auprc(probs, labels):
     """KLUE-RE AUPRC (with no_relation)"""
+    probs = probs.detach().numpy()
     labels = np.eye(30)[labels]
     score = np.zeros((30,))
     for c in range(30):
