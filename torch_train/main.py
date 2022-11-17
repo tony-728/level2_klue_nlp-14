@@ -30,10 +30,14 @@ model.to(device)
 model.train()
 
 for epoch_num in range(config['epoch']):
+    epoch_loss = 0
     for i, (item, labels) in enumerate(train_dataloader):
         optimizer.zero_grad()
         batch = {k:v.to(device) for k,v in item.items()}
         pred = model(**batch).logits
-        metrics = compute_metrics(pred, labels.to(device))
+        loss = compute_loss(pred, labels.to(device))
+        epoch_loss += loss
+        loss.backward()
+        metrics = compute_metrics(pred.cpu(), labels.cpu())
         print(metrics)
         

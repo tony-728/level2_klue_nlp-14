@@ -1,5 +1,9 @@
 import sklearn
 import numpy as np
+import torch.nn as nn
+def compute_loss(pred, labels):
+    loss = nn.CrossEntropyLoss()
+    return loss(pred, labels)
 
 def compute_metrics(pred, labels):
     """ validation을 위한 metrics function """
@@ -44,7 +48,6 @@ def klue_re_micro_f1(preds, labels):
 def klue_re_auprc(probs, labels):
     """KLUE-RE AUPRC (with no_relation)"""
     labels = np.eye(30)[labels]
-
     score = np.zeros((30,))
     for c in range(30):
         targets_c = labels.take([c], axis=1).ravel()
