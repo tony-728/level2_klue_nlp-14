@@ -1,4 +1,9 @@
+# python 
 __pycache__/
+
+# output
 results/
 logs/
-
+prediction/
+best_model/
+wandb/
