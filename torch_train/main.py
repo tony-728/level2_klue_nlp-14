@@ -23,6 +23,7 @@ warnings.filterwarnings(action="ignore")
 
 config = {
     "train_data_path": "/opt/ml/dataset/train/sample_train.csv",
+    "val_data_path": "",
     "model_name": "klue/bert-base",
     "epoch": 10,
     "batch_size": 32,
@@ -47,9 +48,9 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 ##training
 model.to(device)
-model.train()
 
 for epoch_num in range(config["epoch"]):
+    model.train()
     epoch_loss = 0
     for i, (item, labels) in enumerate(train_dataloader):
         optimizer.zero_grad()
@@ -61,4 +62,20 @@ for epoch_num in range(config["epoch"]):
         optimizer.step()
         metrics = compute_metrics(pred.detach().cpu().numpy(), labels.cpu().numpy())
         print(metrics)
-    print("loss: ", float(epoch_loss))
+    print(f"epoch: {epoch_num} train loss: {float(epoch_loss)}, ")
+
+
+    val_loss = 0
+    val_pred = [] ## val data 
+    val_labels = [] ##
+    with torch.no_grad():
+        for i, (item, labels) in enumerate(val_dataloader):
+            batch = {k: v.to(device) for k, v in item.items()}
+            pred = model(**batch).logits
+            loss = compute_loss(pred, labels.to(device))
+            val_loss += loss
+
+            val_pred에 batch 단위 pred를 extend
+            val_labels에
+        
+        
