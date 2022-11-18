@@ -6,9 +6,8 @@ from transformers import (
     AutoModelForSequenceClassification
 )
 
-from Metric import *
-from Dataset import *
-from Model import Model
+from Metric import compute_loss, compute_metrics
+from Dataset import TrainDataset
 
 import warnings
 
