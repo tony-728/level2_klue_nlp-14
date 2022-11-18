@@ -58,7 +58,7 @@ model.to(device)
 for epoch_num in range(config["epoch"]):
     model.train()
     epoch_loss = 0
-    for i, (item, labels) in tqdm(enumerate(train_dataloader)):
+    for i, (item, labels) in enumerate(tqdm(train_dataloader)):
         optimizer.zero_grad()
         batch = {k: v.to(device) for k, v in item.items()}
         pred = model(**batch).logits
@@ -75,7 +75,7 @@ for epoch_num in range(config["epoch"]):
     val_labels = [] ##
     model.eval()
     with torch.no_grad():
-        for i, (item, labels) in enumerate(test_dataloader):
+        for i, (item, labels) in enumerate(tqdm(test_dataloader)):
             batch = {k: v.to(device) for k, v in item.items()}
             pred = model(**batch).logits
             val_pred.append(pred)
