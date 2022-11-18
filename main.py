@@ -3,13 +3,7 @@ import torch
 from transformers import (
     AutoTokenizer,
     AutoConfig,
-    AutoModelForSequenceClassification,
-    Trainer,
-    TrainingArguments,
-    RobertaConfig,
-    RobertaTokenizer,
-    RobertaForSequenceClassification,
-    BertTokenizer,
+    AutoModelForSequenceClassification
 )
 
 from Metric import *
