@@ -38,7 +38,7 @@ train_dataloader = torch.utils.data.DataLoader(
 
 test_dataset = TrainDataset(config["test_data_path"], tokenizer)
 test_dataloader = torch.utils.data.DataLoader(
-    train_dataset, batch_size=config["batch_size"], shuffle=False
+    test_dataset, batch_size=config["batch_size"], shuffle=False
 )
 
 
