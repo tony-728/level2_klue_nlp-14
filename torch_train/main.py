@@ -23,7 +23,7 @@ warnings.filterwarnings(action="ignore")
 
 config = {
     "train_data_path": "/opt/ml/dataset/train/sample_train.csv",
-    "val_data_path": "",
+    "test_data_path" : "/opt/ml/dataset/test/splited_val.csv",
     "model_name": "klue/bert-base",
     "epoch": 10,
     "batch_size": 32,
@@ -35,6 +35,12 @@ train_dataset = TrainDataset(config["train_data_path"], tokenizer)
 train_dataloader = torch.utils.data.DataLoader(
     train_dataset, batch_size=config["batch_size"], shuffle=False
 )
+
+test_dataset = TrainDataset(config["test_data_path"], tokenizer)
+test_dataloader = torch.utils.data.DataLoader(
+    train_dataset, batch_size=config["batch_size"], shuffle=False
+)
+
 
 model_config = AutoConfig.from_pretrained(config["model_name"])
 model_config.num_labels = 30
@@ -60,22 +66,30 @@ for epoch_num in range(config["epoch"]):
         epoch_loss += loss
         loss.backward()
         optimizer.step()
-        metrics = compute_metrics(pred.detach().cpu().numpy(), labels.cpu().numpy())
-        print(metrics)
-    print(f"epoch: {epoch_num} train loss: {float(epoch_loss)}, ")
+        
+    #print(f"epoch: {epoch_num} train loss: {float(epoch_loss)}, ")
 
 
     val_loss = 0
     val_pred = [] ## val data 
     val_labels = [] ##
+    model.eval()
     with torch.no_grad():
-        for i, (item, labels) in enumerate(val_dataloader):
+        for i, (item, labels) in enumerate(test_dataloader):
             batch = {k: v.to(device) for k, v in item.items()}
             pred = model(**batch).logits
+            val_pred.extend(pred.detach().cpu().numpy())
+            val_labels.extend(labels.cpu().numpy())
+
             loss = compute_loss(pred, labels.to(device))
             val_loss += loss
+            #metrics = compute_metrics(pred.detach().cpu().numpy(), labels.cpu().numpy())
+            #print(metrics)
+    print(val_pred)
+    metrics = compute_metrics(val_pred, val_labels)
+    print(print(f"epoch: {epoch_num} val loss: {float(epoch_loss)}, "))
 
-            val_pred에 batch 단위 pred를 extend
-            val_labels에
+            #val_pred에 batch 단위 pred를 extend
+            #val_labels에
         
         
