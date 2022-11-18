@@ -57,20 +57,20 @@ model.to(device)
 
 for epoch_num in range(config["epoch"]):
     model.train()
-    epoch_loss = 0
+    epoch_loss = []
     for i, (item, labels) in enumerate(tqdm(train_dataloader)):
         optimizer.zero_grad()
         batch = {k: v.to(device) for k, v in item.items()}
         pred = model(**batch).logits
         loss = compute_loss(pred, labels.to(device))
-        epoch_loss += loss
+        epoch_loss.append(loss)
         loss.backward()
         optimizer.step()
         
-    print(f"epoch: {epoch_num} train loss: {float(epoch_loss)}, ")
+    print(f"epoch: {epoch_num} train loss: {float(sum(epoch_loss) / len(epoch_loss))}, ")
 
 
-    val_loss = 0
+    val_loss = []
     val_pred = [] ## val data 
     val_labels = [] ##
     model.eval()
@@ -82,14 +82,14 @@ for epoch_num in range(config["epoch"]):
             val_labels.append(labels)
 
             loss = compute_loss(pred, labels.to(device))
-            val_loss += loss
+            val_loss.append(loss)
             
     val_pred = torch.cat(val_pred, dim = 0).detach().cpu().numpy()
     val_labels = torch.cat(val_labels, dim = 0).detach().cpu().numpy()
 
     metrics = compute_metrics(val_pred, val_labels)
     print(metrics)
-    print(f"epoch: {epoch_num} val loss: {float(epoch_loss)}, ")
+    print(f"epoch: {epoch_num} val loss: {float(sum(val_loss) / len(val_loss))}, ")
 
         
         
