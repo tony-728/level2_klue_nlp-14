@@ -1,5 +1,5 @@
 import torch
-
+from tqdm import tqdm
 from transformers import (
     AutoTokenizer,
     AutoConfig,
@@ -22,7 +22,7 @@ warnings.filterwarnings(action="ignore")
 
 
 config = {
-    "train_data_path": "/opt/ml/dataset/train/sample_train.csv",
+    "train_data_path": "/opt/ml/dataset/train/splited_train.csv",
     "test_data_path" : "/opt/ml/dataset/test/splited_val.csv",
     "model_name": "klue/bert-base",
     "epoch": 10,
@@ -58,7 +58,7 @@ model.to(device)
 for epoch_num in range(config["epoch"]):
     model.train()
     epoch_loss = 0
-    for i, (item, labels) in enumerate(train_dataloader):
+    for i, (item, labels) in tqdm(enumerate(train_dataloader)):
         optimizer.zero_grad()
         batch = {k: v.to(device) for k, v in item.items()}
         pred = model(**batch).logits
