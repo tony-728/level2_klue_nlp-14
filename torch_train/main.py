@@ -67,7 +67,7 @@ for epoch_num in range(config["epoch"]):
         loss.backward()
         optimizer.step()
         
-    #print(f"epoch: {epoch_num} train loss: {float(epoch_loss)}, ")
+    print(f"epoch: {epoch_num} train loss: {float(epoch_loss)}, ")
 
 
     val_loss = 0
@@ -78,18 +78,18 @@ for epoch_num in range(config["epoch"]):
         for i, (item, labels) in enumerate(test_dataloader):
             batch = {k: v.to(device) for k, v in item.items()}
             pred = model(**batch).logits
-            val_pred.extend(pred.detach().cpu().numpy())
-            val_labels.extend(labels.cpu().numpy())
+            val_pred.append(pred)
+            val_labels.append(labels)
 
             loss = compute_loss(pred, labels.to(device))
             val_loss += loss
-            #metrics = compute_metrics(pred.detach().cpu().numpy(), labels.cpu().numpy())
-            #print(metrics)
-    print(val_pred)
-    metrics = compute_metrics(val_pred, val_labels)
-    print(print(f"epoch: {epoch_num} val loss: {float(epoch_loss)}, "))
+            
+    val_pred = torch.cat(val_pred, dim = 0).detach().cpu().numpy()
+    val_labels = torch.cat(val_labels, dim = 0).detach().cpu().numpy()
 
-            #val_pred에 batch 단위 pred를 extend
-            #val_labels에
+    metrics = compute_metrics(val_pred, val_labels)
+    print(metrics)
+    print(f"epoch: {epoch_num} val loss: {float(epoch_loss)}, ")
+
         
         
