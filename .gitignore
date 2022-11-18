@@ -1,3 +1,8 @@
 __pycache__/
 results/
 logs/
+
+prediction/
+best_model/
+results/
+wandb/
