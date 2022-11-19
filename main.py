@@ -1,88 +1,39 @@
-import torch
-from tqdm import tqdm
-from transformers import (
-    AutoTokenizer,
-    AutoConfig,
-    AutoModelForSequenceClassification
-)
-
-from Metric import compute_loss, compute_metrics
-from Dataset import TrainDataset
-
-import warnings
-
-warnings.filterwarnings(action="ignore")
+import train
+import inference
+import json
 
 
-config = {
-    "train_data_path": "/opt/ml/dataset/train/splited_train.csv",
-    "test_data_path" : "/opt/ml/dataset/test/splited_val.csv",
-    "model_name": "klue/bert-base",
-    "epoch": 10,
-    "batch_size": 32,
-    "lr": 1e-5,
-}
-tokenizer = AutoTokenizer.from_pretrained(config["model_name"])
+def main(config: dict):
+    """
+    config에 따라서 모델을 학습합니다.
+    학습된 모델을 주어진 데이터 셋에 예측합니다.
 
-train_dataset = TrainDataset(config["train_data_path"], tokenizer)
-train_dataloader = torch.utils.data.DataLoader(
-    train_dataset, batch_size=config["batch_size"], shuffle=False
-)
+    Parameters
+    ----------
+    config : dict
+        config Dictionary
+        "wandb":
+            wandb logging check: true/false,
+        "wandb_key":
+            "<YOUR wandb API KEY>",
+        "inference":
+            학습완료 후 inference 진행 check: true/false,
+        "train_data_path": "<train data path>",
+        "val_data_path": "<val data path>",
+        "test_data_path": "<test data path>",
+        "model_name": "<pre-trained model name>",
+        "epoch": number of epoch,
+        "batch_size": number of batch_size,
+        "lr": learning rate
+    """
+    save_mode_path = train.train(config)
 
-test_dataset = TrainDataset(config["test_data_path"], tokenizer)
-test_dataloader = torch.utils.data.DataLoader(
-    test_dataset, batch_size=config["batch_size"], shuffle=False
-)
-
-
-model_config = AutoConfig.from_pretrained(config["model_name"])
-model_config.num_labels = 30
-model = AutoModelForSequenceClassification.from_pretrained(
-    config["model_name"], config=model_config
-)
-
-optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-##training
-model.to(device)
-
-for epoch_num in range(config["epoch"]):
-    model.train()
-    epoch_loss = []
-    for i, (item, labels) in enumerate(tqdm(train_dataloader)):
-        optimizer.zero_grad()
-        batch = {k: v.to(device) for k, v in item.items()}
-        pred = model(**batch).logits
-        loss = compute_loss(pred, labels.to(device))
-        epoch_loss.append(loss)
-        loss.backward()
-        optimizer.step()
-        
-    print(f"epoch: {epoch_num} train loss: {float(sum(epoch_loss) / len(epoch_loss))}, ")
+    if config["inference"]:
+        inference.main_inference(config, save_mode_path)
 
 
-    val_loss = []
-    val_pred = [] ## val data 
-    val_labels = [] ##
-    model.eval()
-    with torch.no_grad():
-        for i, (item, labels) in enumerate(tqdm(test_dataloader)):
-            batch = {k: v.to(device) for k, v in item.items()}
-            pred = model(**batch).logits
-            val_pred.append(pred)
-            val_labels.append(labels)
+if __name__ == "__main__":
+    with open("config.json", "r") as f:
+        config = json.load(f)
 
-            loss = compute_loss(pred, labels.to(device))
-            val_loss.append(loss)
-            
-    val_pred = torch.cat(val_pred, dim = 0).detach().cpu().numpy()
-    val_labels = torch.cat(val_labels, dim = 0).detach().cpu().numpy()
-
-    metrics = compute_metrics(val_pred, val_labels)
-    print(metrics)
-    print(f"epoch: {epoch_num} val loss: {float(sum(val_loss) / len(val_loss))}, ")
-
-        
-        
+    main(config)
