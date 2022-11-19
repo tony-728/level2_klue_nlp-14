@@ -7,3 +7,6 @@ logs/
 prediction/
 best_model/
 wandb/
+
+# config
+config.json
