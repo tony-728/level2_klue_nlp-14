@@ -12,6 +12,7 @@ import numpy as np
 from tqdm import tqdm
 
 import load_data
+import utils
 
 
 def inference(model, tokenized_sent, device) -> tuple[list, list]:
@@ -169,12 +170,16 @@ def main_inference(config: dict, model_path: str):
     )
 
     project = Model_NAME.replace("/", "-")
-    save_inference_path = f"./prediction/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.csv"
+    save_infercnec_dir = f"./prediction/{project}"
+    if utils.create_directory(save_infercnec_dir):
+        save_inference_path = f"{save_infercnec_dir}/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.csv"
 
-    print(save_inference_path)
-    output.to_csv(save_inference_path, index=False)  # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
-    #### 필수!! ##############################################
-    print("---- Inference Finish! ----")
+        print(save_inference_path)
+        output.to_csv(
+            save_inference_path, index=False
+        )  # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
+        #### 필수!! ##############################################
+        print("---- Inference Finish! ----")
 
 
 if __name__ == "__main__":

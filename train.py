@@ -1,13 +1,13 @@
 import torch
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification
+import warnings
+import wandb
 
 from Metric import compute_loss, compute_metrics
 from load_data import RE_Dataset
+import utils
 
-import warnings
-
-import wandb
 
 warnings.filterwarnings(action="ignore")
 
@@ -136,13 +136,17 @@ def train(config: dict) -> str:
             wandb.log({"eval_accuracy": metrics["accuracy"]})
 
         if lowest_valid_loss > val_loss:
-            save_model_path = f"best_model/{project}/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.bin"
-            print("Acc for model which have lower valid loss: ", metrics["accuracy"])
-            torch.save(
-                model.state_dict(),
-                save_model_path,
-            )
-            lowest_valid_loss = val_loss
+            save_model_dir = f"./best_model/{project}"
+            if utils.create_directory(save_model_dir):
+                save_model_path = f"{save_model_dir}/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.bin"
+                print(
+                    "Acc for model which have lower valid loss: ", metrics["accuracy"]
+                )
+                torch.save(
+                    model.state_dict(),
+                    save_model_path,
+                )
+                lowest_valid_loss = val_loss
 
     print("---- Train Finish! ----")
     return save_model_path
