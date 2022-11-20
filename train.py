@@ -81,6 +81,7 @@ def train(config: dict) -> str:
     model.to(device)
 
     for epoch_num in range(config["epoch"]):
+        print(device)
         model.train()
         epoch_loss = []
         with tqdm(train_dataloader, unit="batch") as tepoch:
