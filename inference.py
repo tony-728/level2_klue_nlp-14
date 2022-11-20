@@ -174,9 +174,9 @@ def main_inference(config: Dict, model_path: str):
     )
 
     project = Model_NAME.replace("/", "-")
-    save_infercnec_dir = f"./prediction/{project}"
-    if utils.create_directory(save_infercnec_dir):
-        save_inference_path = f"{save_infercnec_dir}/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.csv"
+    save_inference_dir = f"./prediction/{project}"
+    if utils.create_directory(save_inference_dir):
+        save_inference_path = f"{save_inference_dir}/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.csv"
 
         print(save_inference_path)
         output.to_csv(
