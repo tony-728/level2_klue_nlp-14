@@ -1,25 +1,27 @@
 import torch
-from tqdm import tqdm
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification
-import warnings
+
+from tqdm import tqdm
 import wandb
 
 from Metric import compute_loss, compute_metrics
 from load_data import RE_Dataset
 import utils
 
+from typing import Dict
+import warnings
 
 warnings.filterwarnings(action="ignore")
 
 
-def train(config: dict) -> str:
+def train(config: Dict) -> str:
     """
     입력된 config에 따라서 모델 학습을 진행한다.
     학습 동안 가장 낮은 loss를 기록한 모델을 저장한다.
 
     Parameters
     ----------
-    config : dict
+    config : Dict
         config Dictionary
         "wandb":
             wandb logging check: true/false,
