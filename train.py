@@ -16,7 +16,7 @@ import warnings
 warnings.filterwarnings(action="ignore")
 
 
-def set_wandb(config: Dict, model, project: str):
+def set_wandb(config: Dict, model, project: str, fold=0):
     """
     wandb 관련 세팅
 
@@ -31,12 +31,22 @@ def set_wandb(config: Dict, model, project: str):
     """
     wandb.login(key=config["wandb_key"])
     entity = "nlp02"
-    wandb.init(
-        # reinit=config["reinit"],
-        entity=entity,
-        project=project,
-        name=f"(batch:{config['batch_size']},epoch:{config['epoch']},lr:{config['lr']})",
-    )
+
+    if config["k-fold"]:
+        wandb.init(
+            # reinit=config["reinit"],
+            reinit=True,
+            entity=entity,
+            project=project,
+            name=f"(fold: {fold}, batch:{config['batch_size']},epoch:{config['epoch']},lr:{config['lr']})",
+        )
+    else:
+        wandb.init(
+            # reinit=config["reinit"],
+            entity=entity,
+            project=project,
+            name=f"(batch:{config['batch_size']},epoch:{config['epoch']},lr:{config['lr']})",
+        )
     wandb.watch(model, log_freq=100)
     return
 
@@ -105,7 +115,7 @@ def set_train(config: Dict):
     return model, train_dataloader, val_dataloader, optimizer
 
 
-def training(config: Dict, model, train_dataloader, val_dataloader, optimizer):
+def training(config: Dict, model, train_dataloader, val_dataloader, optimizer, fold=0):
     """
     실제 학습을 진행한다.
 
@@ -133,7 +143,7 @@ def training(config: Dict, model, train_dataloader, val_dataloader, optimizer):
     project = config["model_name"].replace("/", "-")
 
     if config["wandb"]:
-        set_wandb(config, model, project)
+        set_wandb(config, model, project, fold)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -292,7 +302,7 @@ def train(config: Dict) -> Optional[str]:
             optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
 
             val_loss, total_metrics = training(
-                config, model, train_dataloader, val_dataloader, optimizer
+                config, model, train_dataloader, val_dataloader, optimizer, fold
             )
 
             # k-fold로 검증하는 것은 각 fold의 loss, metrics를 구하고
