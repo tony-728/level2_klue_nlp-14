@@ -30,7 +30,7 @@ def set_wandb(config: Dict, model, project: str, fold: int = 0):
     project : str
         wandb project name
     fold: int
-        fold로 나눌 값
+        fold 번호
     """
     wandb.login(key=config["wandb_key"])
     entity = "nlp02"
@@ -122,7 +122,7 @@ def training(config: Dict, model, train_dataloader, val_dataloader, optimizer, f
 
     Parameters
     ----------
-    config : _type_
+    config : Dict
         모델학습과 관련된 config
     model : _type_
         학습에 사용할 모델
@@ -132,6 +132,8 @@ def training(config: Dict, model, train_dataloader, val_dataloader, optimizer, f
         검증에 사용할 dataloader
     optimizer : _type_
         최적화 함수
+    fold : int
+        fold 번호
 
     Returns
     -------
