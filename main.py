@@ -27,7 +27,6 @@ def main(config: dict):
         "lr": learning rate
     """
     save_mode_path = train.train(config)
-
     if config["inference"]:
         inference.main_inference(config, save_mode_path)
 
