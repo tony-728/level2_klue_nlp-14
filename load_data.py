@@ -3,6 +3,30 @@ import torch
 from torch.utils.data import Dataset
 import pandas as pd
 
+class Original_Dataset(Dataset):
+    def __init__(self, data_path, tokenizer, mode="train"):
+        pd_dataset = pd.read_csv(data_path)
+        raw_dataset = preprocessing_dataset(pd_dataset)
+        raw_labels = raw_dataset["label"].values
+
+        self.data = tokenize_dataset(raw_dataset, tokenizer)
+
+        if mode == "train":
+            self.labels = label_to_num(raw_labels)
+        elif mode == "prediction":
+            self.labels = list(map(int, raw_labels))
+        else:
+            print("check your mode")
+            exit()
+
+    def __getitem__(self, idx):
+        item = {key: val[idx].clone().detach() for key, val in self.data.items()}
+        labels = torch.tensor(self.labels[idx])
+        return item, labels
+
+    def __len__(self):
+        return len(self.labels)
+
 
 class RE_Dataset(Dataset):
     def __init__(self, data_path, tokenizer, mode="train"):

@@ -4,6 +4,7 @@ from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassifi
 from tqdm import tqdm
 import wandb
 
+from Model import Model
 from Metric import compute_loss, compute_metrics
 from load_data import RE_Dataset
 import utils
@@ -53,7 +54,8 @@ def train(config: Dict) -> str:
     val_dataloader = torch.utils.data.DataLoader(
         val_dataset, batch_size=config["batch_size"], shuffle=False
     )
-
+    
+    """
     model_config = AutoConfig.from_pretrained(config["model_name"])
     model_config.num_labels = 30
     model = AutoModelForSequenceClassification.from_pretrained(
@@ -61,8 +63,7 @@ def train(config: Dict) -> str:
     )
 
     """
-    model = 
-    """
+    model = Model(config["model_name"])
     optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -89,13 +90,13 @@ def train(config: Dict) -> str:
         model.train()
         epoch_loss = []
         with tqdm(train_dataloader, unit="batch") as tepoch:
-            for i, (item, labels) in enumerate(tepoch):
+            for i, (item, labels, markers) in enumerate(tepoch):
                 tepoch.set_description(f"Epoch {epoch_num}")
 
                 optimizer.zero_grad()
 
                 batch = {k: v.to(device) for k, v in item.items()}
-                pred = model(**batch).logits
+                pred = model(batch, markers)
                 loss = compute_loss(pred, labels.to(device))
                 epoch_loss.append(loss)
 
@@ -116,9 +117,9 @@ def train(config: Dict) -> str:
         val_labels = []
         model.eval()
         with torch.no_grad():
-            for i, (item, labels) in enumerate(tqdm(val_dataloader, desc="Eval")):
+            for i, (item, labels, markers) in enumerate(tqdm(val_dataloader, desc="Eval")):
                 batch = {k: v.to(device) for k, v in item.items()}
-                pred = model(**batch).logits
+                pred = model(batch, markers)
                 val_pred.append(pred)
                 val_labels.append(labels)
 
