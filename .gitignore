@@ -11,3 +11,7 @@ wandb/
 
 # config
 config.json
+
+#visualization
+*.png
+*.csv

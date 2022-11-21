@@ -199,15 +199,15 @@ def training(
 
         val_pred = torch.cat(val_pred, dim=0).detach().cpu().numpy()
         val_labels = torch.cat(val_labels, dim=0).detach().cpu().numpy()
-        
-        visualization_base(config["val_data_path"], val_pred, val_labels)
-        exit()
 
         metrics = compute_metrics(val_pred, val_labels)
         print(metrics)
 
         val_loss = float(sum(val_loss) / len(val_loss))
         print(f"epoch: {epoch_num} val loss: {val_loss}")
+        
+        #시각화
+        visualization_base(config["val_data_path"], val_pred, val_labels, epoch_num, metrics, val_loss)
 
         if config["wandb"]:
             wandb.log({"epoch": epoch_num})
