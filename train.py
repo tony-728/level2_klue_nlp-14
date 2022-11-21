@@ -87,6 +87,8 @@ def train(config: Dict) -> str:
     model.to(device)
 
     for epoch_num in range(config["epoch"]):
+        wandb.log({"epoch": epoch_num})
+
         model.train()
         epoch_loss = []
         with tqdm(train_dataloader, unit="batch") as tepoch:
