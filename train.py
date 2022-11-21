@@ -10,6 +10,7 @@ from Model import Model
 from Metric import compute_loss, compute_metrics
 from load_data import RE_Dataset
 import utils
+from visualization import visualization_base
 
 from typing import Dict, Optional
 import warnings
@@ -193,6 +194,9 @@ def training(config: Dict, model, train_dataloader, val_dataloader, optimizer, f
 
         val_pred = torch.cat(val_pred, dim=0).detach().cpu().numpy()
         val_labels = torch.cat(val_labels, dim=0).detach().cpu().numpy()
+        
+        visualization_base(config["val_data_path"], val_pred, val_labels)
+        exit()
 
         metrics = compute_metrics(val_pred, val_labels)
         print(metrics)
