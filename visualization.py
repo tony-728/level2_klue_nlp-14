@@ -15,20 +15,14 @@ def visualization_base(base_sheet, pred, label, epoch_num, metrics, loss):
     
     pred = np.argmax(pred, axis=-1)
     
-    #필요 없는 열 삭제
-    base_sheet.drop('subject_entity', axis=1)
-    base_sheet.drop('object_entity', axis=1)
-    base_sheet.drop('id', axis=1)
-    base_sheet.drop('sentence', axis=1)
-    base_sheet.drop('source', axis=1)
-    
     temp = []
     
+    #0이 True, 1이 False. 색깔이 맞지 않아서 일부러 반대로 설정해주었음.
     for i in range(len(pred)):
         if label[i] == pred[i]:
-            temp.append("True")
+            temp.append(0)
         else:
-            temp.append("False")
+            temp.append(1)
     
     base_sheet["answer"] = temp
     
@@ -43,7 +37,7 @@ def visualization_base(base_sheet, pred, label, epoch_num, metrics, loss):
     #base_sheet.to_csv(f"e{epoch_num}_F{round(metrics['micro f1 score'], 2)}_au{round(metrics['auprc'], 2)}_ac{round(metrics['accuracy'], 2)}_loss{round(loss, 2)}.csv", index=False)
     
     plt.figure(figsize=(20, 15))
-    parallel_coordinates(base_sheet, 'answer', color=('r', 'b'), alpha=0.1)
+    parallel_coordinates(base_sheet, 'answer', sort_labels=True, color=['#FE2E2E', '#2E2EFE'], alpha=0.1)
     
     plt.savefig(f"e{epoch_num}_F{round(metrics['micro f1 score'], 2)}_au{round(metrics['auprc'], 2)}_ac{round(metrics['accuracy'], 2)}_loss{round(loss, 2)}.png")
     plt.clf()
