@@ -1,7 +1,7 @@
 import torch
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification
 
-from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
 
 from tqdm import tqdm
 import wandb
@@ -86,13 +86,13 @@ def set_train(config: Dict):
     if config["k-fold"]:
         kfold_config = config["k-fold_config"]
         if kfold_config["shuffle"]:
-            kf = KFold(
+            kf = StratifiedKFold(
                 n_splits=kfold_config["num_splits"],
                 shuffle=True,
                 random_state=kfold_config["split_seed"],
             )
         else:
-            kf = KFold(
+            kf = StratifiedKFold(
                 n_splits=kfold_config["num_splits"], 
                 shuffle=False
             )
@@ -273,7 +273,7 @@ def train(config: Dict) -> Optional[str]:
         total_auprc = []  # 각 폴드별로 나온 auprc 넣어서 최종적으로 평균 떄려서 출력
         total_accuracy = []  # 각 폴드별로 나온 accuracy 넣어서 최종적으로 평균 떄려서 출력
 
-        for fold, (train_idx, val_idx) in enumerate(kf.split(total_dataset)):
+        for fold, (train_idx, val_idx) in enumerate(kf.split(total_dataset, total_dataset.labels)):
             print("------------fold no.{}----------------------".format(fold))
             train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx)
             val_subsampler = torch.utils.data.SubsetRandomSampler(val_idx)
