@@ -32,6 +32,7 @@ def set_wandb(config: Dict, model, project: str):
     wandb.login(key=config["wandb_key"])
     entity = "nlp02"
     wandb.init(
+        # reinit=config["reinit"],
         entity=entity,
         project=project,
         name=f"(batch:{config['batch_size']},epoch:{config['epoch']},lr:{config['lr']})",
@@ -81,7 +82,10 @@ def set_train(config: Dict):
                 random_state=kfold_config["split_seed"],
             )
         else:
-            kf = KFold(n_splits=kfold_config["num_splits"], shuffle=False)
+            kf = KFold(
+                n_splits=kfold_config["num_splits"], 
+                shuffle=False
+            )
 
         return kf, train_dataset
 
@@ -255,9 +259,12 @@ def train(config: Dict) -> Optional[str]:
         kf, total_dataset = set_train(config)
 
         total_loss = []  # 각 폴드별로 나온 로스 넣어서 최종적으로 평균 떄려서 출력
+        total_f1 = []  # 각 폴드별로 나온 f1 넣어서 최종적으로 평균 떄려서 출력
+        total_auprc = []  # 각 폴드별로 나온 auprc 넣어서 최종적으로 평균 떄려서 출력
+        total_accuracy = []  # 각 폴드별로 나온 accuracy 넣어서 최종적으로 평균 떄려서 출력
 
         for fold, (train_idx, val_idx) in enumerate(kf.split(total_dataset)):
-            print("------------fold no---------{}----------------------".format(fold))
+            print("------------fold no.{}----------------------".format(fold))
             train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx)
             val_subsampler = torch.utils.data.SubsetRandomSampler(val_idx)
 
@@ -291,11 +298,17 @@ def train(config: Dict) -> Optional[str]:
             # k-fold로 검증하는 것은 각 fold의 loss, metrics를 구하고
             # 평균을 내서 최종적으로 loss와 metrics을 구한다.
             total_loss.append(val_loss)
+            total_f1.append(total_metrics["micro f1 score"])
+            total_auprc.append(total_metrics["auprc"])
+            total_accuracy.append(total_metrics["accuracy"])
+            
 
-            # 혹시 metrics도 추가하신다면 추가해주세요
             ######################################
 
         print(f"K-fold mean loss: {sum(total_loss)/len(total_loss)}")
+        print(f"K-fold mean f1 score: {sum(total_f1)/len(total_f1)}")
+        print(f"K-fold mean auprc: {sum(total_auprc)/len(total_auprc)}")
+        print(f"K-fold mean accuracy: {sum(total_accuracy)/len(total_accuracy)}")
         return None
     else:
         model, train_dataloader, val_dataloader, optimizer = set_train(config)
@@ -308,94 +321,94 @@ def train(config: Dict) -> Optional[str]:
         return save_model_path
 
 
-def trainKFold(config: dict) -> str:
-    """
-    입력된 config에 따라서 모델 학습을 진행한다.
-    학습 동안 가장 낮은 loss를 기록한 모델을 저장한다.
+# def trainKFold(config: dict) -> str:
+#     """
+#     입력된 config에 따라서 모델 학습을 진행한다.
+#     학습 동안 가장 낮은 loss를 기록한 모델을 저장한다.
 
-    Parameters
-    ----------
-    config : dict
-        config Dictionary
-        "wandb":
-            wandb logging check: true/false,
-        "wandb_key":
-            "<YOUR wandb API KEY>",
-        "inference":
-            학습완료 후 inference 진행 check: true/false,
-        "train_data_path": "<train data path>",
-        "val_data_path": "<val data path>",
-        "test_data_path": "<test data path>",
-        "model_name": "<pre-trained model name>",
-        "epoch": number of epoch,
-        "batch_size": number of batch_size,
-        "lr": learning rate,
-        "k-fold":
-            k-fold 적용 여부 check: true/false,
-        "k-fold_config":{
-            "num_splits": number of folds,
-            "split_seed": random seed value,
-            "shuffle":
-                k-fold split suffle 여부 check: true/false,
-        }
+#     Parameters
+#     ----------
+#     config : dict
+#         config Dictionary
+#         "wandb":
+#             wandb logging check: true/false,
+#         "wandb_key":
+#             "<YOUR wandb API KEY>",
+#         "inference":
+#             학습완료 후 inference 진행 check: true/false,
+#         "train_data_path": "<train data path>",
+#         "val_data_path": "<val data path>",
+#         "test_data_path": "<test data path>",
+#         "model_name": "<pre-trained model name>",
+#         "epoch": number of epoch,
+#         "batch_size": number of batch_size,
+#         "lr": learning rate,
+#         "k-fold":
+#             k-fold 적용 여부 check: true/false,
+#         "k-fold_config":{
+#             "num_splits": number of folds,
+#             "split_seed": random seed value,
+#             "shuffle":
+#                 k-fold split suffle 여부 check: true/false,
+#         }
 
-    Returns
-    -------
-    str
-        저장된 모델 경로
-    """
-    tokenizer = AutoTokenizer.from_pretrained(config["model_name"])
+#     Returns
+#     -------
+#     str
+#         저장된 모델 경로
+#     """
+#     tokenizer = AutoTokenizer.from_pretrained(config["model_name"])
 
-    kfold_config = config["k-fold_config"]
-    total_dataset = RE_Dataset(config["train_data_path"], tokenizer)
+#     kfold_config = config["k-fold_config"]
+#     total_dataset = RE_Dataset(config["train_data_path"], tokenizer)
 
-    # 데이터셋 num_splits 번 fold
-    if kfold_config["shuffle"]:
-        kf = KFold(
-            n_splits=kfold_config["num_splits"],
-            shuffle=True,
-            random_state=kfold_config["split_seed"],
-        )
-    else:
-        kf = KFold(n_splits=kfold_config["num_splits"], shuffle=False)
+#     # 데이터셋 num_splits 번 fold
+#     if kfold_config["shuffle"]:
+#         kf = KFold(
+#             n_splits=kfold_config["num_splits"],
+#             shuffle=True,
+#             random_state=kfold_config["split_seed"],
+#         )
+#     else:
+#         kf = KFold(n_splits=kfold_config["num_splits"], shuffle=False)
 
-    for fold, (train_idx, val_idx) in enumerate(kf.split(total_dataset)):
-        print("------------fold no---------{}----------------------".format(fold))
-        train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx)
-        val_subsampler = torch.utils.data.SubsetRandomSampler(val_idx)
+#     for fold, (train_idx, val_idx) in enumerate(kf.split(total_dataset)):
+#         print("------------fold no---------{}----------------------".format(fold))
+#         train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx)
+#         val_subsampler = torch.utils.data.SubsetRandomSampler(val_idx)
 
-        train_dataloader = torch.utils.data.DataLoader(
-            total_dataset,
-            batch_size=config["batch_size"],
-            shuffle=False,
-            sampler=train_subsampler,
-        )
+#         train_dataloader = torch.utils.data.DataLoader(
+#             total_dataset,
+#             batch_size=config["batch_size"],
+#             shuffle=False,
+#             sampler=train_subsampler,
+#         )
 
-        val_dataloader = torch.utils.data.DataLoader(
-            total_dataset,
-            batch_size=config["batch_size"],
-            shuffle=False,
-            sampler=val_subsampler,
-        )
+#         val_dataloader = torch.utils.data.DataLoader(
+#             total_dataset,
+#             batch_size=config["batch_size"],
+#             shuffle=False,
+#             sampler=val_subsampler,
+#         )
 
-        model_config = AutoConfig.from_pretrained(config["model_name"])
-        model_config.num_labels = 30
+#         model_config = AutoConfig.from_pretrained(config["model_name"])
+#         model_config.num_labels = 30
 
-        model = AutoModelForSequenceClassification.from_pretrained(
-            config["model_name"], config=model_config
-        )
+#         model = AutoModelForSequenceClassification.from_pretrained(
+#             config["model_name"], config=model_config
+#         )
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
+#         optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
 
-        training(config, model, train_dataloader, val_dataloader, optimizer)
+#         training(config, model, train_dataloader, val_dataloader, optimizer)
 
 
-if __name__ == "__main__":
-    import json
+# if __name__ == "__main__":
+#     import json
 
-    with open("config.json", "r") as f:
-        train_config = json.load(f)
-    if train_config["k-fold"]:
-        trainKFold(train_config)
-    else:
-        train(train_config)
+#     with open("config.json", "r") as f:
+#         train_config = json.load(f)
+#     if train_config["k-fold"]:
+#         trainKFold(train_config)
+#     else:
+#         train(train_config)

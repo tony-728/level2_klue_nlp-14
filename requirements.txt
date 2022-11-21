@@ -3,7 +3,7 @@ scikit-learn~=0.24.1
 transformers==4.10.0
 
 # data_experiments requirements
-matplotlib == 3.6.2
+matplotlib==3.6.2
 
 # extend library
-wandb == 0.13.5
+wandb==0.13.5
