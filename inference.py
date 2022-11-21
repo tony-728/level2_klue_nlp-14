@@ -18,8 +18,10 @@ import utils
 
 from typing import Tuple, List, Dict
 
+import Model
 
-def inference(model, tokenized_sent, device) -> Tuple[List, List]:
+
+def inferencing(config, model, tokenized_sent, device) -> Tuple[List, List]:
     """
     test dataset을 DataLoader로 만들어 준 후,
     batch_size로 나눠 model이 예측 합니다.
@@ -31,7 +33,7 @@ def inference(model, tokenized_sent, device) -> Tuple[List, List]:
     tokenized_sent : _type_
         tokenized 된 Dataset 객체
     device :
-        모델이 올라가는 divice(cude/cpu)
+        모델이 올라가는 device(cude/cpu)
 
     Returns
     -------
@@ -39,18 +41,20 @@ def inference(model, tokenized_sent, device) -> Tuple[List, List]:
         예측 문자열 라벨 리스트
         라벨 별 예측 확률 리스트 of 리스트
     """
-    dataloader = DataLoader(tokenized_sent, batch_size=16, shuffle=False)
+    dataloader = DataLoader(
+        tokenized_sent, batch_size=config["batch_size"], shuffle=False
+    )
     model.eval()
     output_pred = []
     output_prob = []
     for i, (data, labels, markers) in enumerate(tqdm(dataloader)):
         with torch.no_grad():
-            outputs = model(
-                input_ids=data["input_ids"].to(device),
-                attention_mask=data["attention_mask"].to(device),
-                token_type_ids=data["token_type_ids"].to(device),
-            )
-        logits = outputs[0]
+            batch = {k: v.to(device) for k, v in data.items()}
+            markers = {k: v.to(device) for k, v in markers.items()}
+
+            outputs = model(batch=batch, markers=markers)
+
+        logits = outputs
         prob = F.softmax(logits, dim=-1).detach().cpu().numpy()
         logits = logits.detach().cpu().numpy()
         result = np.argmax(logits, axis=-1)
@@ -113,7 +117,7 @@ def load_test_dataset(
     return df["id"], Re_test_dataset
 
 
-def main_inference(config: Dict, model_path: str):
+def inference(config: Dict, model_path: str):
     """
     주어진 config와 model_path를 사용하여 모델을 inference를 한다.
 
@@ -143,10 +147,7 @@ def main_inference(config: Dict, model_path: str):
     Model_NAME = config["model_name"]
     tokenizer = AutoTokenizer.from_pretrained(Model_NAME)
 
-    ## load my model
-    model = AutoModelForSequenceClassification.from_pretrained(
-        pretrained_model_name_or_path=Model_NAME, num_labels=30
-    )
+    model = Model.Model(Model_NAME)
 
     model.load_state_dict(torch.load(model_path))
     # model.parameters
@@ -157,8 +158,8 @@ def main_inference(config: Dict, model_path: str):
     test_id, Re_test_dataset = load_test_dataset(test_dataset_dir, tokenizer)
 
     ## predict answer
-    pred_answer, output_prob = inference(
-        model, Re_test_dataset, device
+    pred_answer, output_prob = inferencing(
+        config, model, Re_test_dataset, device
     )  # model에서 class 추론
     pred_answer = num_to_label(pred_answer)  # 숫자로 된 class를 원래 문자열 라벨로 변환.
 
@@ -194,6 +195,6 @@ if __name__ == "__main__":
 
     # print(config)
 
-    model_path = "/opt/ml/level2_klue_nlp-14/best_model/klue-bert-base/klue-bert-base_b128_e10_lr1e-05.bin"
+    model_path = "/opt/ml/level2_klue_nlp-14/best_model/klue-bert-base/klue-bert-base_b32_e5_lr5e-05.bin"
 
-    main_inference(config, model_path)
+    inference(config, model_path)

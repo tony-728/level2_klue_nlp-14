@@ -25,10 +25,19 @@ def main(config: Dict):
         "model_name": "<pre-trained model name>",
         "epoch": number of epoch,
         "batch_size": number of batch_size,
-        "lr": learning rate
+        "lr": learning rate,
+        "k-fold":
+            k-fold 적용 여부 check: true/false,
+        "k-fold_config":{
+            "num_splits": number of folds,
+            "split_seed": random seed value,
+            "shuffle":
+                k-fold split suffle 여부 check: true/false,
+        }
     """
     save_mode_path = train.train(config)
-    if config["inference"]:
+
+    if config["inference"] and not config["k-fold"]:
         inference.main_inference(config, save_mode_path)
 
 
