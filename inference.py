@@ -33,7 +33,7 @@ def inferencing(config, model, tokenized_sent, device) -> Tuple[List, List]:
     tokenized_sent : _type_
         tokenized 된 Dataset 객체
     device :
-        모델이 올라가는 divice(cude/cpu)
+        모델이 올라가는 device(cude/cpu)
 
     Returns
     -------
@@ -49,15 +49,11 @@ def inferencing(config, model, tokenized_sent, device) -> Tuple[List, List]:
     output_prob = []
     for i, (data, labels, markers) in enumerate(tqdm(dataloader)):
         with torch.no_grad():
-            markers = {k: v.to(device) for k, v in markers.items()}
             batch = {k: v.to(device) for k, v in data.items()}
+            markers = {k: v.to(device) for k, v in markers.items()}
 
             outputs = model(batch=batch, markers=markers)
-            # input_ids=data["input_ids"].to(device),
-            # attention_mask=data["attention_mask"].to(device),
-            # token_type_ids=data["token_type_ids"].to(device),
 
-        # logits = outputs[0]
         logits = outputs
         prob = F.softmax(logits, dim=-1).detach().cpu().numpy()
         logits = logits.detach().cpu().numpy()
@@ -150,11 +146,6 @@ def inference(config: Dict, model_path: str):
     # load tokenizer
     Model_NAME = config["model_name"]
     tokenizer = AutoTokenizer.from_pretrained(Model_NAME)
-
-    ## load my model
-    # model = AutoModelForSequenceClassification.from_pretrained(
-    #     pretrained_model_name_or_path=Model_NAME, num_labels=30
-    # )
 
     model = Model.Model(Model_NAME)
 
