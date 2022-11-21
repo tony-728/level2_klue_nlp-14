@@ -1,7 +1,15 @@
-import pickle as pickle
+import os
+
 import torch
 from torch.utils.data import Dataset
+
 import pandas as pd
+
+import pickle as pickle
+
+# GPU가 여러개 일때는 병렬처리가 필요할 수 있지만
+# 현재는 GPU가 하나이기 때문에 False로 변경해도 무방해보임
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 class RE_Dataset(Dataset):
