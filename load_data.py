@@ -12,7 +12,7 @@ class RE_Dataset(Dataset):
 
         self.data = tokenize_dataset(raw_dataset, tokenizer)
         
-        self.marker = get_marker_idx(self.data['input_ids'].tolist(), tokenizer, '@', '^') #subject marker : @ obj marker: ^
+        self.marker_idx = get_marker_idx(self.data['input_ids'].tolist(), tokenizer, '@', '^') #subject marker : @ obj marker: ^
         if mode == "train":
             self.labels = label_to_num(raw_labels)
         elif mode == "prediction":
@@ -24,8 +24,8 @@ class RE_Dataset(Dataset):
     def __getitem__(self, idx):
         item = {key: val[idx].clone().detach() for key, val in self.data.items()}
         labels = torch.tensor(self.labels[idx])
-        marker_idx = {key: val[idx].clone().detach() for key, val in self.marker.items()}
-        return item, labels, marker_idx
+        markers = {key: val[idx] for key, val in self.marker_idx.items()}
+        return item, labels, markers
 
     def __len__(self):
         return len(self.labels)
@@ -34,15 +34,30 @@ class RE_Dataset(Dataset):
 def preprocessing_dataset(dataset):
     subject_entity = []
     object_entity = []
-    for i, j in zip(dataset["subject_entity"], dataset["object_entity"]):
-        i = i[1:-1].split(",")[0].split(":")[1]
-        j = j[1:-1].split(",")[0].split(":")[1]
-        subject_entity.append(i)
-        object_entity.append(j)
+    preprocessed_sentences = []
+    for i, j, k in zip(dataset["subject_entity"], dataset["object_entity"], dataset["sentence"]):
+        subj_dict = eval(i)
+        obj_dict = eval(j)
+
+        subject_entity.append(subj_dict['word'])
+        object_entity.append(obj_dict['word'])
+        ss = subj_dict['start_idx']
+        se = subj_dict['end_idx']
+        os = obj_dict['start_idx']
+        oe = obj_dict['end_idx']
+        if os<ss:
+            preprocessed_sentences.append((k[:os]+" ^ " + k[os:oe+1] + " ^ " + k[oe+1:ss] + " @ " + k[ss:se+1] + " @ " + k[se+1:]))
+        else:
+            preprocessed_sentences.append((k[:ss]+" @ " + k[ss:se+1] + " @ " + k[se+1:os] + " ^ " + k[os:oe+1] + " ^ " + k[se+1:]))
+        """
+        if want to use entity's type
+        subj_type = i['type']
+        obj_type = j['type']
+        """
     output_dataset = pd.DataFrame(
         {
             "id": dataset["id"],
-            "sentence": dataset["sentence"],
+            "sentence": preprocessed_sentences,
             "subject_entity": subject_entity,
             "object_entity": object_entity,
             "label": dataset["label"],
@@ -52,15 +67,9 @@ def preprocessing_dataset(dataset):
 
 
 def tokenize_dataset(dataset, tokenizer):
-    new_sentence = []
-    for sent, subj, obj in zip(dataset["sentence"], dataset["subject_entity"], dataset["object_entity"]):
-        tmp = ""
-        tmp = sent.replace(subj[2:-1], ' @ ' + subj[2:-1] + ' @ ')
-        tmp = tmp.replace(obj[2:-1], ' ^ ' + obj[2:-1] + ' ^ ')
-        new_sentence.append(tmp)
-    
+
     tokenized_sentences = tokenizer(
-        new_sentence,
+        dataset['sentence'].tolist(),
         return_tensors = "pt",
         padding = True,
         truncation = True,
@@ -97,26 +106,6 @@ def get_marker_idx(input_ids_list, tokenizer, subj_marker, obj_marker):
 
     return marker_idx
 
-"""
-def tokenize_dataset(dataset, tokenizer):
-    concat_entity = []
-    for e01, e02 in zip(dataset["subject_entity"], dataset["object_entity"]):
-        temp = ""
-        temp = e01 + "[SEP]" + e02
-        concat_entity.append(temp)
-
-    tokenized_sentences = tokenizer(
-        concat_entity,
-        list(dataset["sentence"]),
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
-        max_length=256,
-        add_special_tokens=True,
-    )
-
-    return tokenized_sentences
-"""
 
 def load_data(dataset_dir):
     """csv 파일을 경로에 맡게 불러 옵니다."""

@@ -1,7 +1,7 @@
 import torch
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification
-
+from Model import Model
 from Metric import compute_loss, compute_metrics
 from load_data import RE_Dataset
 
@@ -57,6 +57,9 @@ def train(config: dict) -> str:
         config["model_name"], config=model_config
     )
 
+    """
+    model = 
+    """
     optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
