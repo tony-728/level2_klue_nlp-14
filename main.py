@@ -35,12 +35,9 @@ def main(config: Dict):
                 k-fold split suffle 여부 check: true/false,
         }
     """
-    if config["k-fold"]:
-        save_mode_path = train.trainKFold(config)
-    else:
-        save_mode_path = train.train(config)
+    save_mode_path = train.train(config)
 
-    if config["inference"]:
+    if config["inference"] and not config["k-fold"]:
         inference.main_inference(config, save_mode_path)
 
 
