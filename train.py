@@ -188,11 +188,13 @@ def trainKFold(config: dict) -> str:
     tokenizer = AutoTokenizer.from_pretrained(config["model_name"])
 
     kfold_config=config["k-fold_config"]
-    total_dataset = TrainDataset(config["train_data_path"], tokenizer)
+    total_dataset = RE_Dataset(config["train_data_path"], tokenizer)
 
     # 데이터셋 num_splits 번 fold
-    kf = KFold(n_splits=kfold_config["num_splits"], shuffle=kfold_config["shuffle"], random_state=kfold_config["split_seed"])
-
+    if kfold_config["shuffle"]:
+        kf = KFold(n_splits=kfold_config["num_splits"], shuffle=True, random_state=kfold_config["split_seed"])
+    else:
+        kf = KFold(n_splits=kfold_config["num_splits"], shuffle=False)
 
     for fold,(train_idx,val_idx) in enumerate(kf.split(total_dataset)):
         print('------------fold no---------{}----------------------'.format(fold))
@@ -315,7 +317,7 @@ if __name__ == "__main__":
 
     with open("config.json", "r") as f:
         train_config = json.load(f)
-    if train_config["k-fold"] is False:
+    if train_config["k-fold"]:
         trainKFold(train_config)
     else:
         train(train_config)
