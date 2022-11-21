@@ -9,10 +9,10 @@ class Model(nn.Module):
     def __init__(self, model_name: str):
         super().__init__()
         self.model = AutoModel.from_pretrained(model_name)
-        self.linear = nn.Linear(768*3, 30)
-        self.softmax = nn.Softmax()
+        hidden_state = self.model.config.hidden_size
+        self.linear = nn.Linear(hidden_state*3, 30)
+
     def forward(self, batch, markers):
-        # last_hidden = self.model(**batch).last_hidden_state
         output = self.model(**batch)
         cls_outputs = output.pooler_output
         last_hidden = output.last_hidden_state
@@ -30,7 +30,6 @@ class Model(nn.Module):
 
         batch_output = torch.stack(batch_output_list)
         batch_output = self.linear(batch_output)
-        probability_distribution = self.softmax(batch_output)
 
-        return probability_distribution
+        return batch_output
         
