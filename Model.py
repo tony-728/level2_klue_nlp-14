@@ -12,14 +12,17 @@ class Model(nn.Module):
         self.linear = nn.Linear(768*3, 30)
         self.softmax = nn.Softmax()
     def forward(self, batch, markers):
-        last_hidden = self.model(**batch).last_hidden_state
+        # last_hidden = self.model(**batch).last_hidden_state
+        output = self.model(**batch)
+        cls_outputs = output.pooler_output
+        last_hidden = output.last_hidden_state
         batch_output_list = []
         for _ in range(last_hidden.size(0)):
             ss = markers['ss'][_]
             se = markers['se'][_]
             os = markers['os'][_]
             oe = markers['oe'][_]
-            cls_output = last_hidden[_][0] #(768)
+            cls_output = cls_outputs[_]
             subj_output = torch.mean(last_hidden[_][ss:se+1], dim = 0) #(768)
             obj_output = torch.mean(last_hidden[_][os:oe+1], dim = 0) #(768)
 

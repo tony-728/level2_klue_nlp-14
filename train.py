@@ -54,7 +54,7 @@ def train(config: Dict) -> str:
     val_dataloader = torch.utils.data.DataLoader(
         val_dataset, batch_size=config["batch_size"], shuffle=False
     )
-    
+
     """
     model_config = AutoConfig.from_pretrained(config["model_name"])
     model_config.num_labels = 30
@@ -96,6 +96,7 @@ def train(config: Dict) -> str:
                 optimizer.zero_grad()
 
                 batch = {k: v.to(device) for k, v in item.items()}
+                markers = {k: v.to(device) for k, v in markers.items()}
                 pred = model(batch, markers)
                 loss = compute_loss(pred, labels.to(device))
                 epoch_loss.append(loss)
@@ -117,7 +118,9 @@ def train(config: Dict) -> str:
         val_labels = []
         model.eval()
         with torch.no_grad():
-            for i, (item, labels, markers) in enumerate(tqdm(val_dataloader, desc="Eval")):
+            for i, (item, labels, markers) in enumerate(
+                tqdm(val_dataloader, desc="Eval")
+            ):
                 batch = {k: v.to(device) for k, v in item.items()}
                 pred = model(batch, markers)
                 val_pred.append(pred)
