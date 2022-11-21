@@ -139,7 +139,7 @@ def train(config: Dict) -> str:
         print(f"epoch: {epoch_num} val loss: {val_loss}")
 
         if config["wandb"]:
-            wandb.log({"eval_loss": float(sum(epoch_loss) / len(epoch_loss))})
+            wandb.log({"eval_loss": val_loss})
             wandb.log({"eval_f1": metrics["micro f1 score"]})
             wandb.log({"eval_auprc": metrics["auprc"]})
             wandb.log({"eval_accuracy": metrics["accuracy"]})
