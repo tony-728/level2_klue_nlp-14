@@ -108,7 +108,14 @@ def set_train(config: Dict):
     return model, train_dataloader, val_dataloader, optimizer
 
 
-def training(config: Dict, model, train_dataloader, val_dataloader, optimizer, fold=0):
+def training(
+    config: Dict,
+    model,
+    train_dataloader,
+    val_dataloader,
+    optimizer,
+    fold: int = 0,
+):
     """
     실제 학습을 진행한다.
 
@@ -147,8 +154,6 @@ def training(config: Dict, model, train_dataloader, val_dataloader, optimizer, f
     model.to(device)
 
     for epoch_num in range(config["epoch"]):
-        wandb.log({"epoch": epoch_num})
-
         model.train()
         epoch_loss = []
         with tqdm(train_dataloader, unit="batch") as tepoch:
@@ -201,6 +206,7 @@ def training(config: Dict, model, train_dataloader, val_dataloader, optimizer, f
         print(f"epoch: {epoch_num} val loss: {val_loss}")
 
         if config["wandb"]:
+            wandb.log({"epoch": epoch_num})
             wandb.log({"eval_loss": val_loss})
             wandb.log({"eval_f1": metrics["micro f1 score"]})
             wandb.log({"eval_auprc": metrics["auprc"]})
