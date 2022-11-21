@@ -1,20 +1,25 @@
+import pickle as pickle
+
+import torch
+from torch.utils.data import DataLoader
+import torch.nn.functional as F
+
 from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification,
 )
-from torch.utils.data import DataLoader
-import pandas as pd
-import torch
-import torch.nn.functional as F
 
-import pickle as pickle
+import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
 import load_data
+import utils
+
+from typing import Tuple, List, Dict
 
 
-def inference(model, tokenized_sent, device) -> tuple[list, list]:
+def inference(model, tokenized_sent, device) -> Tuple[List, List]:
     """
     test dataset을 DataLoader로 만들어 준 후,
     batch_size로 나눠 model이 예측 합니다.
@@ -30,7 +35,7 @@ def inference(model, tokenized_sent, device) -> tuple[list, list]:
 
     Returns
     -------
-    tuple[list, list]
+    Tuple[list, list]
         예측 문자열 라벨 리스트
         라벨 별 예측 확률 리스트 of 리스트
     """
@@ -59,19 +64,19 @@ def inference(model, tokenized_sent, device) -> tuple[list, list]:
     )
 
 
-def num_to_label(label: list) -> list:
+def num_to_label(label: List) -> List:
     """
     숫자로 되어 있던 class를 원본 문자열 라벨로 변환 합니다.
 
     Parameters
     ----------
-    label : list
-        숫자로 되어 있는 class list
+    label : List
+        숫자로 되어 있는 class List
 
     Returns
     -------
-    list
-        문자열 라벨 list
+    List
+        문자열 라벨 List
     """
     origin_label = []
     with open("dict_num_to_label.pkl", "rb") as f:
@@ -84,7 +89,7 @@ def num_to_label(label: list) -> list:
 
 def load_test_dataset(
     dataset_dir: str, tokenizer: AutoTokenizer
-) -> tuple[pd.Series, torch.utils.data.Dataset]:
+) -> Tuple[pd.Series, torch.utils.data.Dataset]:
     """
     데이터 셋을 불러와서 tokenzied된 Dataset를 만든다.
 
@@ -97,7 +102,7 @@ def load_test_dataset(
 
     Returns
     -------
-    tuple[pd.Series, torch.Dataset]
+    Tuple[pd.Series, torch.Dataset]
         inference 할 데이터 셋의 id Series
         raw 데이터 셋을 inference에 사용할 Dataset 객체
     """
@@ -108,13 +113,13 @@ def load_test_dataset(
     return df["id"], Re_test_dataset
 
 
-def main_inference(config: dict, model_path: str):
+def main_inference(config: Dict, model_path: str):
     """
     주어진 config와 model_path를 사용하여 모델을 inference를 한다.
 
     Parameters
     ----------
-    config : dict
+    config : Dict
         config Dictionary
         "wandb":
             wandb logging check: true/false,
@@ -169,12 +174,16 @@ def main_inference(config: dict, model_path: str):
     )
 
     project = Model_NAME.replace("/", "-")
-    save_inference_path = f"./prediction/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.csv"
+    save_inference_dir = f"./prediction/{project}"
+    if utils.create_directory(save_inference_dir):
+        save_inference_path = f"{save_inference_dir}/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.csv"
 
-    print(save_inference_path)
-    output.to_csv(save_inference_path, index=False)  # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
-    #### 필수!! ##############################################
-    print("---- Inference Finish! ----")
+        print(save_inference_path)
+        output.to_csv(
+            save_inference_path, index=False
+        )  # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
+        #### 필수!! ##############################################
+        print("---- Inference Finish! ----")
 
 
 if __name__ == "__main__":

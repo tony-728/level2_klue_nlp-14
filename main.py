@@ -1,16 +1,17 @@
 import train
 import inference
 import json
+from typing import Dict
 
 
-def main(config: dict):
+def main(config: Dict):
     """
     config에 따라서 모델을 학습합니다.
     학습된 모델을 주어진 데이터 셋에 예측합니다.
 
     Parameters
     ----------
-    config : dict
+    config : Dict
         config Dictionary
         "wandb":
             wandb logging check: true/false,
