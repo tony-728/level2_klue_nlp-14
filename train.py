@@ -47,7 +47,7 @@ def train(config: Dict) -> str:
 
     train_dataset = RE_Dataset(config["train_data_path"], tokenizer)
     train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=config["batch_size"], shuffle=False
+        train_dataset, batch_size=config["batch_size"], shuffle=True
     )
 
     val_dataset = RE_Dataset(config["val_data_path"], tokenizer)
