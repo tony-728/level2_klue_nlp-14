@@ -102,14 +102,6 @@ def set_train(config: Dict):
         val_dataset, batch_size=config["batch_size"], shuffle=False
     )
 
-    """
-    model_config = AutoConfig.from_pretrained(config["model_name"])
-    model_config.num_labels = 30
-    model = AutoModelForSequenceClassification.from_pretrained(
-        config["model_name"], config=model_config
-    )
-
-    """
     model = Model(config["model_name"])
     optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
 
