@@ -17,7 +17,7 @@ import warnings
 warnings.filterwarnings(action="ignore")
 
 
-def set_wandb(config: Dict, model, project: str, fold=0):
+def set_wandb(config: Dict, model, project: str, fold: int = 0):
     """
     wandb 관련 세팅
 
@@ -29,13 +29,14 @@ def set_wandb(config: Dict, model, project: str, fold=0):
         학습에 사용될 모델
     project : str
         wandb project name
+    fold: int
+        fold로 나눌 값
     """
     wandb.login(key=config["wandb_key"])
     entity = "nlp02"
 
     if config["k-fold"]:
         wandb.init(
-            # reinit=config["reinit"],
             reinit=True,
             entity=entity,
             project=project,
@@ -43,7 +44,6 @@ def set_wandb(config: Dict, model, project: str, fold=0):
         )
     else:
         wandb.init(
-            # reinit=config["reinit"],
             entity=entity,
             project=project,
             name=f"(batch:{config['batch_size']},epoch:{config['epoch']},lr:{config['lr']})",
