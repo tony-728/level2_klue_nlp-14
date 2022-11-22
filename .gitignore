@@ -10,7 +10,7 @@ best_model/
 wandb/
 
 # config
-config.json
+*.json
 
 #visualization
 *.png
