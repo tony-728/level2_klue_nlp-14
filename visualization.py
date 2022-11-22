@@ -7,6 +7,9 @@ import pickle as pickle
 from ast import literal_eval
 
 def visualization_base(base_sheet, pred, label, epoch_num, metrics, loss):
+    with open("dict_label_to_num.pkl", "rb") as f:
+        dict_label = pickle.load(f)
+    
     with open("dict_num_to_label.pkl", "rb") as f:
         dict_num_to_label = pickle.load(f)
         
@@ -32,11 +35,16 @@ def visualization_base(base_sheet, pred, label, epoch_num, metrics, loss):
     
     base_sheet["pred"] = num_label
     
+    base_sheet["label"] = base_sheet["label"].apply(lambda x : dict_label[x])
+    base_sheet["pred"] = base_sheet["pred"].apply(lambda x : dict_label[x])
+    
     base_sheet = base_sheet[['label', 'pred', 'answer']]
     
     #base_sheet.to_csv(f"e{epoch_num}_F{round(metrics['micro f1 score'], 2)}_au{round(metrics['auprc'], 2)}_ac{round(metrics['accuracy'], 2)}_loss{round(loss, 2)}.csv", index=False)
     
     plt.figure(figsize=(20, 15))
+    temp = []
+        
     parallel_coordinates(base_sheet, 'answer', sort_labels=True, color=['#FE2E2E', '#2E2EFE'], alpha=0.1)
     
     plt.savefig(f"e{epoch_num}_F{round(metrics['micro f1 score'], 2)}_au{round(metrics['auprc'], 2)}_ac{round(metrics['accuracy'], 2)}_loss{round(loss, 2)}.png")
