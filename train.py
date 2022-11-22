@@ -154,33 +154,51 @@ def training(
 
     model.to(device)
 
+    accumulation_step = config["accumulation_step"]
+
     for epoch_num in range(config["epoch"]):
+        # train
         model.train()
         epoch_loss = []
+        running_loss = 0.0
         with tqdm(train_dataloader, unit="batch") as tepoch:
             for i, (item, labels, markers) in enumerate(tepoch):
                 tepoch.set_description(f"Epoch {epoch_num}")
-
-                optimizer.zero_grad()
 
                 batch = {k: v.to(device) for k, v in item.items()}
                 markers = {k: v.to(device) for k, v in markers.items()}
                 pred = model(batch, markers)
                 loss = compute_loss(pred, labels.to(device))
-                epoch_loss.append(loss)
+
+                loss = loss / accumulation_step
+                running_loss += loss.item()
 
                 loss.backward()
-                optimizer.step()
 
-                tepoch.set_postfix(loss=loss.item())
+                if accumulation_step > 1:
+                    if (i + 1) % accumulation_step:
+                        continue
+
+                    optimizer.step()
+                    optimizer.zero_grad()
+
+                else:
+                    optimizer.step()
+                    optimizer.zero_grad()
+
+                epoch_loss.append(running_loss)
+                tepoch.set_postfix(loss=running_loss)
 
                 if config["wandb"]:
-                    wandb.log({"train_loss": loss.item()})
+                    wandb.log({"train_loss": running_loss})
+
+                running_loss = 0.0
 
             print(
-                f"epoch: {epoch_num} train loss: {float(sum(epoch_loss) / len(epoch_loss))}"
+                f"epoch: {epoch_num} train loss: {float(sum(epoch_loss) / len(epoch_loss)):.3f}"
             )
 
+        # evaluation
         val_loss = []
         val_pred = []
         val_labels = []
@@ -217,6 +235,7 @@ def training(
                 val_loss,
             )
 
+        # wandb logging
         if config["wandb"]:
             wandb.log({"epoch": epoch_num})
             wandb.log({"eval_loss": val_loss})
@@ -224,6 +243,7 @@ def training(
             wandb.log({"eval_auprc": metrics["auprc"]})
             wandb.log({"eval_accuracy": metrics["accuracy"]})
 
+        # model save
         if not config["k-fold"]:
             if metrics["micro f1 score"] > highest_valid_f1:
                 save_model_dir = f"./best_model/{project}"
