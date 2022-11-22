@@ -6,9 +6,11 @@ from sklearn.model_selection import StratifiedKFold
 from tqdm import tqdm
 import wandb
 
+from Model import Model
 from Metric import compute_loss, compute_metrics
 from load_data import RE_Dataset
 import utils
+from visualization import visualization_base
 
 from typing import Dict, Optional
 import warnings
@@ -16,7 +18,7 @@ import warnings
 warnings.filterwarnings(action="ignore")
 
 
-def set_wandb(config: Dict, model, project: str, fold=0):
+def set_wandb(config: Dict, model, project: str, fold: int = 0):
     """
     wandb 관련 세팅
 
@@ -28,21 +30,21 @@ def set_wandb(config: Dict, model, project: str, fold=0):
         학습에 사용될 모델
     project : str
         wandb project name
+    fold: int
+        fold 번호
     """
     wandb.login(key=config["wandb_key"])
     entity = "nlp02"
 
     if config["k-fold"]:
         wandb.init(
-            # reinit=config["reinit"],
             reinit=True,
             entity=entity,
             project=project,
-            name=f"(fold: {fold}, batch:{config['batch_size']},epoch:{config['epoch']},lr:{config['lr']})",
+            name=f"(stkfold: {fold}, batch:{config['batch_size']},epoch:{config['epoch']},lr:{config['lr']})",
         )
     else:
         wandb.init(
-            # reinit=config["reinit"],
             entity=entity,
             project=project,
             name=f"(batch:{config['batch_size']},epoch:{config['epoch']},lr:{config['lr']})",
@@ -80,7 +82,7 @@ def set_train(config: Dict):
 
     train_dataset = RE_Dataset(config["train_data_path"], tokenizer)
     train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=config["batch_size"], shuffle=False
+        train_dataset, batch_size=config["batch_size"], shuffle=True
     )
 
     if config["k-fold"]:
@@ -96,7 +98,6 @@ def set_train(config: Dict):
                 n_splits=kfold_config["num_splits"], 
                 shuffle=False
             )
-
         return kf, train_dataset
 
     val_dataset = RE_Dataset(config["val_data_path"], tokenizer)
@@ -104,24 +105,26 @@ def set_train(config: Dict):
         val_dataset, batch_size=config["batch_size"], shuffle=False
     )
 
-    model_config = AutoConfig.from_pretrained(config["model_name"])
-    model_config.num_labels = 30
-    model = AutoModelForSequenceClassification.from_pretrained(
-        config["model_name"], config=model_config
-    )
-
+    model = Model(config["model_name"])
     optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
 
     return model, train_dataloader, val_dataloader, optimizer
 
 
-def training(config: Dict, model, train_dataloader, val_dataloader, optimizer, fold=0):
+def training(
+    config: Dict,
+    model,
+    train_dataloader,
+    val_dataloader,
+    optimizer,
+    fold: int = 0,
+):
     """
     실제 학습을 진행한다.
 
     Parameters
     ----------
-    config : _type_
+    config : Dict
         모델학습과 관련된 config
     model : _type_
         학습에 사용할 모델
@@ -131,6 +134,8 @@ def training(config: Dict, model, train_dataloader, val_dataloader, optimizer, f
         검증에 사용할 dataloader
     optimizer : _type_
         최적화 함수
+    fold : int
+        fold 번호
 
     Returns
     -------
@@ -147,7 +152,7 @@ def training(config: Dict, model, train_dataloader, val_dataloader, optimizer, f
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    lowest_valid_loss = 9999.0
+    highest_valid_f1 = 0.0
 
     model.to(device)
 
@@ -155,13 +160,14 @@ def training(config: Dict, model, train_dataloader, val_dataloader, optimizer, f
         model.train()
         epoch_loss = []
         with tqdm(train_dataloader, unit="batch") as tepoch:
-            for i, (item, labels) in enumerate(tepoch):
+            for i, (item, labels, markers) in enumerate(tepoch):
                 tepoch.set_description(f"Epoch {epoch_num}")
 
                 optimizer.zero_grad()
 
                 batch = {k: v.to(device) for k, v in item.items()}
-                pred = model(**batch).logits
+                markers = {k: v.to(device) for k, v in markers.items()}
+                pred = model(batch, markers)
                 loss = compute_loss(pred, labels.to(device))
                 epoch_loss.append(loss)
 
@@ -182,9 +188,11 @@ def training(config: Dict, model, train_dataloader, val_dataloader, optimizer, f
         val_labels = []
         model.eval()
         with torch.no_grad():
-            for i, (item, labels) in enumerate(tqdm(val_dataloader, desc="Eval")):
+            for i, (item, labels, markers) in enumerate(
+                tqdm(val_dataloader, desc="Eval")
+            ):
                 batch = {k: v.to(device) for k, v in item.items()}
-                pred = model(**batch).logits
+                pred = model(batch, markers)
                 val_pred.append(pred)
                 val_labels.append(labels)
 
@@ -200,26 +208,38 @@ def training(config: Dict, model, train_dataloader, val_dataloader, optimizer, f
         val_loss = float(sum(val_loss) / len(val_loss))
         print(f"epoch: {epoch_num} val loss: {val_loss}")
 
+        # 시각화
+        if not config["k-fold"]:
+            visualization_base(
+                config["val_data_path"],
+                val_pred,
+                val_labels,
+                epoch_num,
+                metrics,
+                val_loss,
+            )
+
         if config["wandb"]:
+            wandb.log({"epoch": epoch_num})
             wandb.log({"eval_loss": val_loss})
             wandb.log({"eval_f1": metrics["micro f1 score"]})
             wandb.log({"eval_auprc": metrics["auprc"]})
             wandb.log({"eval_accuracy": metrics["accuracy"]})
 
         if not config["k-fold"]:
-            if lowest_valid_loss > val_loss:
+            if metrics["micro f1 score"] > highest_valid_f1:
                 save_model_dir = f"./best_model/{project}"
                 if utils.create_directory(save_model_dir):
                     save_model_path = f"{save_model_dir}/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.bin"
                     print(
-                        "Acc for model which have lower valid loss: ",
-                        metrics["accuracy"],
+                        "micro f1 score for model which have higher micro f1 score: ",
+                        metrics["micro f1 score"],
                     )
                     torch.save(
                         model.state_dict(),
                         save_model_path,
                     )
-                    lowest_valid_loss = val_loss
+                    highest_valid_f1 = metrics["micro f1 score"]
 
     if config["k-fold"]:
         # 마지막 validation loss, metrics 리턴
@@ -292,12 +312,7 @@ def train(config: Dict) -> Optional[str]:
                 sampler=val_subsampler,
             )
 
-            model_config = AutoConfig.from_pretrained(config["model_name"])
-            model_config.num_labels = 30
-
-            model = AutoModelForSequenceClassification.from_pretrained(
-                config["model_name"], config=model_config
-            )
+            model = Model(config["model_name"])
 
             optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
 
@@ -311,7 +326,6 @@ def train(config: Dict) -> Optional[str]:
             total_f1.append(total_metrics["micro f1 score"])
             total_auprc.append(total_metrics["auprc"])
             total_accuracy.append(total_metrics["accuracy"])
-            
 
             ######################################
 
@@ -329,96 +343,3 @@ def train(config: Dict) -> Optional[str]:
         )
 
         return save_model_path
-
-
-# def trainKFold(config: dict) -> str:
-#     """
-#     입력된 config에 따라서 모델 학습을 진행한다.
-#     학습 동안 가장 낮은 loss를 기록한 모델을 저장한다.
-
-#     Parameters
-#     ----------
-#     config : dict
-#         config Dictionary
-#         "wandb":
-#             wandb logging check: true/false,
-#         "wandb_key":
-#             "<YOUR wandb API KEY>",
-#         "inference":
-#             학습완료 후 inference 진행 check: true/false,
-#         "train_data_path": "<train data path>",
-#         "val_data_path": "<val data path>",
-#         "test_data_path": "<test data path>",
-#         "model_name": "<pre-trained model name>",
-#         "epoch": number of epoch,
-#         "batch_size": number of batch_size,
-#         "lr": learning rate,
-#         "k-fold":
-#             k-fold 적용 여부 check: true/false,
-#         "k-fold_config":{
-#             "num_splits": number of folds,
-#             "split_seed": random seed value,
-#             "shuffle":
-#                 k-fold split suffle 여부 check: true/false,
-#         }
-
-#     Returns
-#     -------
-#     str
-#         저장된 모델 경로
-#     """
-#     tokenizer = AutoTokenizer.from_pretrained(config["model_name"])
-
-#     kfold_config = config["k-fold_config"]
-#     total_dataset = RE_Dataset(config["train_data_path"], tokenizer)
-
-#     # 데이터셋 num_splits 번 fold
-#     if kfold_config["shuffle"]:
-#         kf = KFold(
-#             n_splits=kfold_config["num_splits"],
-#             shuffle=True,
-#             random_state=kfold_config["split_seed"],
-#         )
-#     else:
-#         kf = KFold(n_splits=kfold_config["num_splits"], shuffle=False)
-
-#     for fold, (train_idx, val_idx) in enumerate(kf.split(total_dataset)):
-#         print("------------fold no---------{}----------------------".format(fold))
-#         train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx)
-#         val_subsampler = torch.utils.data.SubsetRandomSampler(val_idx)
-
-#         train_dataloader = torch.utils.data.DataLoader(
-#             total_dataset,
-#             batch_size=config["batch_size"],
-#             shuffle=False,
-#             sampler=train_subsampler,
-#         )
-
-#         val_dataloader = torch.utils.data.DataLoader(
-#             total_dataset,
-#             batch_size=config["batch_size"],
-#             shuffle=False,
-#             sampler=val_subsampler,
-#         )
-
-#         model_config = AutoConfig.from_pretrained(config["model_name"])
-#         model_config.num_labels = 30
-
-#         model = AutoModelForSequenceClassification.from_pretrained(
-#             config["model_name"], config=model_config
-#         )
-
-#         optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
-
-#         training(config, model, train_dataloader, val_dataloader, optimizer)
-
-
-# if __name__ == "__main__":
-#     import json
-
-#     with open("config.json", "r") as f:
-#         train_config = json.load(f)
-#     if train_config["k-fold"]:
-#         trainKFold(train_config)
-#     else:
-#         train(train_config)
