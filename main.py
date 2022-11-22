@@ -38,7 +38,7 @@ def main(config: Dict):
     save_mode_path = train.train(config)
 
     if config["inference"] and not config["k-fold"]:
-        inference.main_inference(config, save_mode_path)
+        inference.inference(config, save_mode_path)
 
 
 if __name__ == "__main__":
