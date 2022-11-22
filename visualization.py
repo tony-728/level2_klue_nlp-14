@@ -53,8 +53,7 @@ def visualization_base(base_sheet, binary, pred, label, epoch_num, metrics, loss
     #base_sheet.to_csv(f"e{epoch_num}_F{round(metrics['micro f1 score'], 2)}_au{round(metrics['auprc'], 2)}_ac{round(metrics['accuracy'], 2)}_loss{round(loss, 2)}.csv", index=False)
     
     plt.figure(figsize=(20, 15))
-    temp = []
-        
+    
     parallel_coordinates(base_sheet, 'answer', sort_labels=True, color=['#FE2E2E', '#2E2EFE'], alpha=0.1)
     
     plt.savefig(f"e{epoch_num}_F{round(metrics['micro f1 score'], 2)}_au{round(metrics['auprc'], 2)}_ac{round(metrics['accuracy'], 2)}_loss{round(loss, 2)}.png")
