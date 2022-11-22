@@ -150,7 +150,7 @@ def training(
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    lowest_valid_loss = 9999.0
+    highest_valid_f1 = 0.0
 
     model.to(device)
 
@@ -205,9 +205,11 @@ def training(
 
         val_loss = float(sum(val_loss) / len(val_loss))
         print(f"epoch: {epoch_num} val loss: {val_loss}")
-        
-        #시각화
-        visualization_base(config["val_data_path"], val_pred, val_labels, epoch_num, metrics, val_loss)
+
+        # 시각화
+        visualization_base(
+            config["val_data_path"], val_pred, val_labels, epoch_num, metrics, val_loss
+        )
 
         if config["wandb"]:
             wandb.log({"epoch": epoch_num})
@@ -217,19 +219,19 @@ def training(
             wandb.log({"eval_accuracy": metrics["accuracy"]})
 
         if not config["k-fold"]:
-            if lowest_valid_loss > val_loss:
+            if metrics["micro f1 score"] > highest_valid_f1:
                 save_model_dir = f"./best_model/{project}"
                 if utils.create_directory(save_model_dir):
                     save_model_path = f"{save_model_dir}/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.bin"
                     print(
-                        "Acc for model which have lower valid loss: ",
-                        metrics["accuracy"],
+                        "micro f1 score for model which have higher micro f1 score: ",
+                        metrics["micro f1 score"],
                     )
                     torch.save(
                         model.state_dict(),
                         save_model_path,
                     )
-                    lowest_valid_loss = val_loss
+                    highest_valid_f1 = metrics["micro f1 score"]
 
     if config["k-fold"]:
         # 마지막 validation loss, metrics 리턴
