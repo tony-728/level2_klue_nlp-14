@@ -15,3 +15,4 @@ wandb/
 #visualization
 *.png
 *.csv
+!data_pie.png
