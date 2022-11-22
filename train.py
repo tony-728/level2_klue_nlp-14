@@ -207,9 +207,15 @@ def training(
         print(f"epoch: {epoch_num} val loss: {val_loss}")
 
         # 시각화
-        visualization_base(
-            config["val_data_path"], val_pred, val_labels, epoch_num, metrics, val_loss
-        )
+        if not config["k-fold"]:
+            visualization_base(
+                config["val_data_path"],
+                val_pred,
+                val_labels,
+                epoch_num,
+                metrics,
+                val_loss,
+            )
 
         if config["wandb"]:
             wandb.log({"epoch": epoch_num})
