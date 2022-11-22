@@ -331,7 +331,7 @@ def train(config: Dict) -> Optional[str]:
                 sampler=val_subsampler,
             )
 
-            model = Model(config["model_name"])
+            model = Model(config["model_name"], config["binary"])
 
             optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
 
