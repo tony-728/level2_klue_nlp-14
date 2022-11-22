@@ -80,7 +80,7 @@ def set_train(config: Dict):
     """
     tokenizer = AutoTokenizer.from_pretrained(config["model_name"])
 
-    train_dataset = RE_Dataset(config["train_data_path"], tokenizer)
+    train_dataset = RE_Dataset(config["train_data_path"], tokenizer, binary = config["binary"])
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset, batch_size=config["batch_size"], shuffle=True
     )
@@ -98,12 +98,12 @@ def set_train(config: Dict):
 
         return kf, train_dataset
 
-    val_dataset = RE_Dataset(config["val_data_path"], tokenizer)
+    val_dataset = RE_Dataset(config["val_data_path"], tokenizer, binary = config["binary"])
     val_dataloader = torch.utils.data.DataLoader(
         val_dataset, batch_size=config["batch_size"], shuffle=False
     )
 
-    model = Model(config["model_name"])
+    model = Model(config["model_name"], binary = config["binary"])
     optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
 
     return model, train_dataloader, val_dataloader, optimizer
@@ -217,8 +217,8 @@ def training(
 
         val_pred = torch.cat(val_pred, dim=0).detach().cpu().numpy()
         val_labels = torch.cat(val_labels, dim=0).detach().cpu().numpy()
-
-        metrics = compute_metrics(val_pred, val_labels)
+        
+        metrics = compute_metrics(val_pred, val_labels, config["binary"])
         print(metrics)
 
         val_loss = float(sum(val_loss) / len(val_loss))
@@ -228,6 +228,7 @@ def training(
         if not config["k-fold"]:
             visualization_base(
                 config["val_data_path"],
+                config["binary"],
                 val_pred,
                 val_labels,
                 epoch_num,

@@ -6,7 +6,7 @@ import pickle as pickle
 
 from ast import literal_eval
 
-def visualization_base(base_sheet, pred, label, epoch_num, metrics, loss):
+def visualization_base(base_sheet, binary, pred, label, epoch_num, metrics, loss):
     with open("dict_label_to_num.pkl", "rb") as f:
         dict_label = pickle.load(f)
     
@@ -15,6 +15,8 @@ def visualization_base(base_sheet, pred, label, epoch_num, metrics, loss):
         
     print("Drawing Graph..")
     base_sheet = pd.read_csv(base_sheet)
+    if binary:
+        base_sheet["label"] = base_sheet["label"].apply(lambda x : "no_relation" if x == "no_relation" else "relation")
     
     pred = np.argmax(pred, axis=-1)
     
@@ -30,13 +32,21 @@ def visualization_base(base_sheet, pred, label, epoch_num, metrics, loss):
     base_sheet["answer"] = temp
     
     num_label = []
-    for v in pred:
-        num_label.append(dict_num_to_label[v])
-    
+    if binary == False:
+        for v in pred:
+            num_label.append(dict_num_to_label[v])
+    else:
+        for v in pred:
+            num_label.append("no_relation" if v == 0 else "relation")
+            
     base_sheet["pred"] = num_label
     
-    base_sheet["label"] = base_sheet["label"].apply(lambda x : dict_label[x])
-    base_sheet["pred"] = base_sheet["pred"].apply(lambda x : dict_label[x])
+    if binary == False:
+        base_sheet["label"] = base_sheet["label"].apply(lambda x : dict_label[x])
+        base_sheet["pred"] = base_sheet["pred"].apply(lambda x : dict_label[x])
+    else:
+        base_sheet["label"] = base_sheet["label"].apply(lambda x : 0 if x == "no_relation" else 1)
+        base_sheet["pred"] = base_sheet["pred"].apply(lambda x : 0 if x == "no_relation" else 1)
     
     base_sheet = base_sheet[['label', 'pred', 'answer']]
     

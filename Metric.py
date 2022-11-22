@@ -9,7 +9,7 @@ def compute_loss(pred, labels):
     return loss(pred, labels)
 
 
-def compute_metrics(pred, labels):
+def compute_metrics(pred, labels, binary = False):
     """validation을 위한 metrics function"""
     # labels = pred.label_ids
 
@@ -22,7 +22,7 @@ def compute_metrics(pred, labels):
 
     # calculate accuracy using sklearn's function
     f1 = klue_re_micro_f1(preds, labels)
-    auprc = klue_re_auprc(probs, labels)
+    auprc = klue_re_auprc(probs, labels, binary)
     acc = accuracy_score(labels, preds)  # 리더보드 평가에는 포함되지 않습니다.
 
     return {
@@ -74,16 +74,29 @@ def klue_re_micro_f1(preds, labels):
     )
 
 
-def klue_re_auprc(probs, labels):
+def klue_re_auprc(probs, labels, binary):
     """KLUE-RE AUPRC (with no_relation)"""
-    # probs = probs.detach().numpy()
-    labels = np.eye(30)[labels]
-    score = np.zeros((30,))
-    for c in range(30):
-        targets_c = labels.take([c], axis=1).ravel()
-        preds_c = probs.take([c], axis=1).ravel()
-        precision, recall, _ = sklearn.metrics.precision_recall_curve(
-            targets_c, preds_c
-        )
-        score[c] = sklearn.metrics.auc(recall, precision)
-    return np.average(score) * 100.0
+    if binary == False:
+        # probs = probs.detach().numpy()
+        labels = np.eye(30)[labels]
+        score = np.zeros((30,))
+        for c in range(30):
+            targets_c = labels.take([c], axis=1).ravel()
+            preds_c = probs.take([c], axis=1).ravel()
+            precision, recall, _ = sklearn.metrics.precision_recall_curve(
+                targets_c, preds_c
+            )
+            score[c] = sklearn.metrics.auc(recall, precision)
+        return np.average(score) * 100.0
+    else:
+        # probs = probs.detach().numpy()
+        labels = np.eye(2)[labels]
+        score = np.zeros((2,))
+        for c in range(2):
+            targets_c = labels.take([c], axis=1).ravel()
+            preds_c = probs.take([c], axis=1).ravel()
+            precision, recall, _ = sklearn.metrics.precision_recall_curve(
+                targets_c, preds_c
+            )
+            score[c] = sklearn.metrics.auc(recall, precision)
+        return np.average(score) * 100.0

@@ -90,6 +90,29 @@ def num_to_label(label: List) -> List:
 
     return origin_label
 
+def num_to_binary(label: List) -> List:
+    """
+    숫자로 되어 있던 class를 원본 문자열 라벨로 변환 합니다.
+
+    Parameters
+    ----------
+    label : List
+        숫자로 되어 있는 class List
+
+    Returns
+    -------
+    List
+        문자열 라벨 List
+    """
+    origin_label = []
+    for v in label:
+        if v == 0:
+            origin_label.append("no_relation")
+        else:
+            origin_label.append("relation")
+
+    return origin_label
+
 
 def load_test_dataset(
     dataset_dir: str, tokenizer: AutoTokenizer
@@ -112,7 +135,7 @@ def load_test_dataset(
     """
     df = pd.read_csv(dataset_dir)
 
-    Re_test_dataset = load_data.RE_Dataset(dataset_dir, tokenizer, "prediction")
+    Re_test_dataset = load_data.RE_Dataset(dataset_dir, tokenizer, mode="prediction")
 
     return df["id"], Re_test_dataset
 
@@ -147,7 +170,7 @@ def inference(config: Dict, model_path: str):
     Model_NAME = config["model_name"]
     tokenizer = AutoTokenizer.from_pretrained(Model_NAME)
 
-    model = Model.Model(Model_NAME)
+    model = Model.Model(Model_NAME, binary = config["binary"])
 
     model.load_state_dict(torch.load(model_path))
     # model.parameters
@@ -161,7 +184,10 @@ def inference(config: Dict, model_path: str):
     pred_answer, output_prob = inferencing(
         config, model, Re_test_dataset, device
     )  # model에서 class 추론
-    pred_answer = num_to_label(pred_answer)  # 숫자로 된 class를 원래 문자열 라벨로 변환.
+    if config["binary"] == False:
+        pred_answer = num_to_label(pred_answer)  # 숫자로 된 class를 원래 문자열 라벨로 변환.
+    else:
+        pred_answer = num_to_binary(pred_answer)  # 0,1로 구성된 class를 relation, no_relation으로 변환
 
     ## make csv file with predicted answer
     #########################################################

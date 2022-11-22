@@ -6,11 +6,14 @@ from typing import Dict
 
 
 class Model(nn.Module):
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, binary = False):
         super().__init__()
         self.model = AutoModel.from_pretrained(model_name)
         hidden_state = self.model.config.hidden_size
-        self.linear = nn.Linear(hidden_state*2, 30)
+        if binary == False :
+            self.linear = nn.Linear(hidden_state*2, 30)
+        else:
+            self.linear = nn.Linear(hidden_state*2, 2)
 
     def forward(self, batch, markers):
         output = self.model(**batch)

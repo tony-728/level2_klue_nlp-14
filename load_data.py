@@ -13,7 +13,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 class Original_Dataset(Dataset):
-    def __init__(self, data_path, tokenizer, mode="train"):
+    def __init__(self, data_path, tokenizer, binary = False, mode="train"):
         pd_dataset = pd.read_csv(data_path)
         raw_dataset = preprocessing_dataset(pd_dataset)
         raw_labels = raw_dataset["label"].values
@@ -21,7 +21,10 @@ class Original_Dataset(Dataset):
         self.data = tokenize_dataset(raw_dataset, tokenizer)
 
         if mode == "train":
-            self.labels = label_to_num(raw_labels)
+            if binary == False:
+                self.labels = label_to_num(raw_labels)
+            else:
+                self.labels = label_to_binary(raw_labels)
         elif mode == "prediction":
             self.labels = list(map(int, raw_labels))
         else:
@@ -38,7 +41,7 @@ class Original_Dataset(Dataset):
 
 
 class RE_Dataset(Dataset):
-    def __init__(self, data_path, tokenizer, mode="train"):
+    def __init__(self, data_path, tokenizer, binary = False, mode="train"):
         pd_dataset = pd.read_csv(data_path)
         raw_dataset = preprocessing_dataset(pd_dataset)
         raw_labels = raw_dataset["label"].values
@@ -49,7 +52,10 @@ class RE_Dataset(Dataset):
             self.data["input_ids"].tolist(), tokenizer, "@", "^"
         )  # subject marker : @ obj marker: ^
         if mode == "train":
-            self.labels = label_to_num(raw_labels)
+            if binary == False:
+                self.labels = label_to_num(raw_labels)
+            else:
+                self.labels = label_to_binary(raw_labels)
         elif mode == "prediction":
             self.labels = list(map(int, raw_labels))
         else:
@@ -183,5 +189,15 @@ def label_to_num(label):
         dict_label_to_num = pickle.load(f)
     for v in label:
         num_label.append(dict_label_to_num[v])
+
+    return num_label
+
+def label_to_binary(label):
+    num_label = []
+    for v in label:
+        if v == "no_relation":
+            num_label.append(0)
+        else:
+            num_label.append(1)
 
     return num_label
