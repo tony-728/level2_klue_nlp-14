@@ -104,7 +104,7 @@ def set_train(config: Dict):
     )
 
     model = Model(config["model_name"])
-    optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"])
 
     return model, train_dataloader, val_dataloader, optimizer
 

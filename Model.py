@@ -11,6 +11,8 @@ class Model(nn.Module):
         self.model = AutoModel.from_pretrained(model_name)
         hidden_state = self.model.config.hidden_size
         self.linear = nn.Linear(hidden_state*2, 30)
+        self.dense = nn.Linear(hidden_state*2,hidden_state*2)
+        self.tanh = nn.Tanh()
         self.dropout = nn.Dropout(0.1)
 
     def forward(self, batch, markers):
@@ -28,6 +30,9 @@ class Model(nn.Module):
             batch_output_list.append(torch.cat((subj_output, obj_output), dim = 0)) #(768*3)
 
         batch_output = torch.stack(batch_output_list)
+        batch_output = self.dropout(batch_output)
+        batch_output = self.dense(batch_output)
+        batch_output = self.tanh(batch_output)
         batch_output = self.dropout(batch_output)
         batch_output = self.linear(batch_output)
 
