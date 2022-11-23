@@ -159,7 +159,7 @@ def train():
     training_args = TrainingArguments(
         output_dir="./results",  # output directory
         save_total_limit=5,  # number of total save model.
-        save_steps=500,  # model saving step.
+        save_strategy="epoch",  # model saving step.
         num_train_epochs=20,  # total number of training epochs
         learning_rate=5e-5,  # learning_rate
         per_device_train_batch_size=64,  # batch size per device during training
@@ -168,12 +168,13 @@ def train():
         weight_decay=0.01,  # strength of weight decay
         logging_dir="./logs",  # directory for storing logs
         logging_steps=100,  # log saving step.
-        evaluation_strategy="steps",  # evaluation strategy to adopt during training
+        evaluation_strategy="epoch",  # evaluation strategy to adopt during training
         # `no`: No evaluation during training.
         # `steps`: Evaluate every `eval_steps`.
         # `epoch`: Evaluate every end of epoch.
-        eval_steps=500,  # evaluation step.
+        # eval_steps=500,  # evaluation step.
         load_best_model_at_end=True,
+        metric_for_best_model="micro f1 score",
         gradient_accumulation_steps=2,  # gradient accumulation step
         report_to="wandb",  # wandb logging
     )
