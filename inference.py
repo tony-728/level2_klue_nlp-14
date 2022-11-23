@@ -47,12 +47,12 @@ def inference(model, tokenized_sent, device):
     )
 
 
-def num_to_label(label):
+def num_to_label(label, so_combine):
     """
     숫자로 되어 있던 class를 원본 문자열 라벨로 변환 합니다.
     """
     origin_label = []
-    with open("dict_num_to_label.pkl", "rb") as f:
+    with open(f"{so_combine}_num2label.pkl", "rb") as f:
         dict_num_to_label = pickle.load(f)
     for v in label:
         origin_label.append(dict_num_to_label[v])
@@ -72,23 +72,23 @@ def load_test_dataset(dataset_dir, tokenizer):
     return test_dataset["id"], tokenized_test, test_label
 
 
-def main(args):
+def main(so_combine):
     """
     주어진 dataset csv 파일과 같은 형태일 경우 inference 가능한 코드입니다.
     """
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # load tokenizer
-    Tokenizer_NAME = "klue/bert-base"
+    Tokenizer_NAME = "klue/roberta-base"
     tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME)
 
     ## load my model
-    MODEL_NAME = args.model_dir  # model dir.
+    MODEL_NAME = f"./best_{so_combine}"  # model dir.
     model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
     model.parameters
     model.to(device)
 
     ## load test datset
-    test_dataset_dir = "../dataset/test/test_data.csv"
+    test_dataset_dir = f"../dataset/test/{so_combine}_test.csv"
     test_id, test_dataset, test_label = load_test_dataset(test_dataset_dir, tokenizer)
     Re_test_dataset = RE_Dataset(test_dataset, test_label)
 
@@ -96,7 +96,7 @@ def main(args):
     pred_answer, output_prob = inference(
         model, Re_test_dataset, device
     )  # model에서 class 추론
-    pred_answer = num_to_label(pred_answer)  # 숫자로 된 class를 원래 문자열 라벨로 변환.
+    pred_answer = num_to_label(pred_answer, so_combine)  # 숫자로 된 class를 원래 문자열 라벨로 변환.
 
     ## make csv file with predicted answer
     #########################################################
@@ -110,17 +110,24 @@ def main(args):
     )
 
     output.to_csv(
-        "./prediction/submission.csv", index=False
+        f"./prediction/submission_{so_combine}.csv", index=False
     )  # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
     #### 필수!! ##############################################
     print("---- Finish! ----")
 
 
 if __name__ == "__main__":
+    """
     parser = argparse.ArgumentParser()
 
     # model dir
     parser.add_argument("--model_dir", type=str, default="./best_model")
     args = parser.parse_args()
     print(args)
-    main(args)
+    """
+    subject_list = ["PER", "ORG"]
+    object_list = ["DAT", "LOC", "NOH", "ORG", "PER", "POH"]
+    for i in subject_list:
+        for j in object_list:
+            so_combine = f"{i}_{j}"
+            main(so_combine)
