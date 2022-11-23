@@ -138,7 +138,7 @@ def training(
     Returns
     -------
     K-fold로 진행하지 않을 때
-        loss가 가장 낮은 모델의 저장 경로
+        f1이 가장 낮은 모델의 저장 경로
     K-fold로 진행할 때
         최종 validation loss
     """
@@ -222,7 +222,7 @@ def training(
         print(metrics)
 
         val_loss = float(sum(val_loss) / len(val_loss))
-        print(f"epoch: {epoch_num} val loss: {val_loss}")
+        print(f"epoch: {epoch_num} val loss: {val_loss:.3f}")
 
         # 시각화
         if not config["k-fold"]:
