@@ -109,7 +109,7 @@ def label_to_num(label):
 def train():
     # load model and tokenizer
     # MODEL_NAME = "bert-base-uncased"
-    MODEL_NAME = "klue/bert-base"
+    MODEL_NAME = "klue/roberta_large"
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
     # load dataset
@@ -191,7 +191,12 @@ def train():
 
 
 def main():
-    train()
+    subject_list = ["PER", "ORG"]
+    object_list = ["DAT", "LOC", "NOH", "ORG", "PER", "POH"]
+    for i in subject_list:
+        for j in object_list:
+            so_combine = f"{i}_{j}"
+            train(so_combine)
 
 
 if __name__ == "__main__":
