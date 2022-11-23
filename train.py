@@ -152,6 +152,7 @@ def train(so_combine):
     wandb.login(key="7e6ec155b0d26c977f3eb38dd9ff7babfffffecf")
     entity = "nlp02"
     wandb.init(
+        reinit=True,
         entity=entity,
         project=project,
         name=f"{so_combine}",
