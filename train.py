@@ -1,6 +1,6 @@
 import torch
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification
-
+from transformers import ElectraModel, ElectraTokenizer
 from sklearn.model_selection import KFold
 
 from tqdm import tqdm

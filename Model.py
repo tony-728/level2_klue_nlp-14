@@ -1,7 +1,7 @@
 import torch
 from torch import nn as nn
 from transformers import AutoTokenizer, AutoConfig, AutoModel
-
+from transformers import ElectraModel, ElectraTokenizer
 from typing import Dict
 
 
@@ -11,6 +11,7 @@ class Model(nn.Module):
         self.model = AutoModel.from_pretrained(model_name)
         hidden_state = self.model.config.hidden_size
         self.linear = nn.Linear(hidden_state*2, 30)
+        self.dropout = nn.Dropout(0.1)
 
     def forward(self, batch, markers):
         output = self.model(**batch)
@@ -27,6 +28,7 @@ class Model(nn.Module):
             batch_output_list.append(torch.cat((subj_output, obj_output), dim = 0)) #(768*3)
 
         batch_output = torch.stack(batch_output_list)
+        batch_output = self.dropout(batch_output)
         batch_output = self.linear(batch_output)
 
         return batch_output
