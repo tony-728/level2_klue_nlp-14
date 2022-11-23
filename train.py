@@ -156,7 +156,7 @@ def training(
 
     accumulation_step = config["accumulation_step"]
 
-    scheduler = torch.optim.lr_scheduler.LamdaLR(optimizer=optimizer, lr_lambda = lambda epoch: 0.95 ** epoch, last_epoch=-1, verbose=False)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer, lr_lambda = lambda epoch: 0.95 ** epoch, last_epoch=-1, verbose=False)
     
     for epoch_num in range(config["epoch"]):
         # train
