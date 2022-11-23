@@ -230,7 +230,8 @@ def training(
 
         val_loss = float(sum(val_loss) / len(val_loss))
         print(f"epoch: {epoch_num} val loss: {val_loss:.3f}")
-
+        
+        """
         # 시각화
         if not config["k-fold"]:
             visualization_base(
@@ -241,6 +242,7 @@ def training(
                 metrics,
                 val_loss,
             )
+        """
 
         # wandb logging
         if config["wandb"]:

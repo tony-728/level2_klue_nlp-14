@@ -45,6 +45,8 @@ if __name__ == "__main__":
     with open("config.json", "r") as f:
         config = json.load(f)
         
+    main(config, "none")
+    
     subject_list = ["PER", "ORG"]
     object_list = ["DAT", "LOC", "NOH", "ORG", "PER", "POH"]
     for i in subject_list:
