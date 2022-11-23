@@ -14,11 +14,12 @@ from visualization import visualization_base
 
 from typing import Dict, Optional
 import warnings
+import pickle
 
 warnings.filterwarnings(action="ignore")
 
 
-def set_wandb(config: Dict, model, project: str, fold: int = 0):
+def set_wandb(config: Dict, model, project: str, so_combine, fold: int = 0):
     """
     wandb 관련 세팅
 
@@ -45,15 +46,16 @@ def set_wandb(config: Dict, model, project: str, fold: int = 0):
         )
     else:
         wandb.init(
+            reinit=True,
             entity=entity,
             project=project,
-            name=f"(batch:{config['batch_size']},epoch:{config['epoch']},lr:{config['lr']})",
+            name=f"{so_combine}(batch:{config['batch_size']},epoch:{config['epoch']},lr:{config['lr']})",
         )
     wandb.watch(model, log_freq=100)
     return
 
 
-def set_train(config: Dict):
+def set_train(config: Dict, so_combine):
     """
     모델 학습에 필요한 것들을 생성한다.
     K-fold로 검증할 때와 아닐 때를 구분한다.
@@ -80,7 +82,7 @@ def set_train(config: Dict):
     """
     tokenizer = AutoTokenizer.from_pretrained(config["model_name"])
 
-    train_dataset = RE_Dataset(config["train_data_path"], tokenizer)
+    train_dataset = RE_Dataset(f"/opt/ml/dataset/train/{so_combine}.csv", tokenizer, so_combine)
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset, batch_size=config["batch_size"], shuffle=True
     )
@@ -98,12 +100,16 @@ def set_train(config: Dict):
 
         return kf, train_dataset
 
-    val_dataset = RE_Dataset(config["val_data_path"], tokenizer)
+    val_dataset = RE_Dataset(f"/opt/ml/dataset/train/{so_combine}.csv", tokenizer, so_combine) #추후 추가해줘야됨
     val_dataloader = torch.utils.data.DataLoader(
         val_dataset, batch_size=config["batch_size"], shuffle=False
     )
+    
+    with open(f'/opt/ml/level2_klue_nlp-14/recent_pkl/{so_combine}_label2num.pkl', 'rb') as f:
+        data = pickle.load(f)
+    label_count = len(data)
 
-    model = Model(config["model_name"])
+    model = Model(config["model_name"], label_count)
     optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"])
 
     return model, train_dataloader, val_dataloader, optimizer
@@ -115,7 +121,8 @@ def training(
     train_dataloader,
     val_dataloader,
     optimizer,
-    fold: int = 0,
+    so_combine,
+    fold: int = 0
 ):
     """
     실제 학습을 진행한다.
@@ -143,10 +150,10 @@ def training(
         최종 validation loss
     """
     # wandb setting
-    project = config["model_name"].replace("/", "-")
+    project = config["model_name"].replace("/", "-") + "RECENT"
 
     if config["wandb"]:
-        set_wandb(config, model, project, fold)
+        set_wandb(config, model, project, so_combine, fold)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -218,7 +225,7 @@ def training(
         val_pred = torch.cat(val_pred, dim=0).detach().cpu().numpy()
         val_labels = torch.cat(val_labels, dim=0).detach().cpu().numpy()
 
-        metrics = compute_metrics(val_pred, val_labels)
+        metrics = compute_metrics(val_pred, val_labels, so_combine)
         print(metrics)
 
         val_loss = float(sum(val_loss) / len(val_loss))
@@ -248,7 +255,7 @@ def training(
             if metrics["micro f1 score"] > highest_valid_f1:
                 save_model_dir = f"./best_model/{project}"
                 if utils.create_directory(save_model_dir):
-                    save_model_path = f"{save_model_dir}/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.bin"
+                    save_model_path = f"{save_model_dir}/{project}_{so_combine}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.bin"
                     print(
                         "micro f1 score for model which have higher micro f1 score: ",
                         metrics["micro f1 score"],
@@ -267,7 +274,7 @@ def training(
     return save_model_path
 
 
-def train(config: Dict) -> Optional[str]:
+def train(config: Dict, so_combine) -> Optional[str]:
     """
     입력된 config에 따라서 모델 학습을 진행한다.
     학습 동안 가장 낮은 loss를 기록한 모델을 저장한다.
@@ -335,7 +342,7 @@ def train(config: Dict) -> Optional[str]:
             optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
 
             val_loss, total_metrics = training(
-                config, model, train_dataloader, val_dataloader, optimizer, fold
+                config, model, train_dataloader, val_dataloader, optimizer, so_combine, fold
             )
 
             # k-fold로 검증하는 것은 각 fold의 loss, metrics를 구하고
@@ -353,11 +360,11 @@ def train(config: Dict) -> Optional[str]:
         print(f"K-fold mean accuracy: {sum(total_accuracy)/len(total_accuracy)}")
         return None
     else:
-        model, train_dataloader, val_dataloader, optimizer = set_train(config)
+        model, train_dataloader, val_dataloader, optimizer = set_train(config, so_combine)
 
         ##training
         save_model_path = training(
-            config, model, train_dataloader, val_dataloader, optimizer
+            config, model, train_dataloader, val_dataloader, optimizer, so_combine
         )
 
         return save_model_path

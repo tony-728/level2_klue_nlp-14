@@ -6,11 +6,11 @@ from typing import Dict
 
 
 class Model(nn.Module):
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, label_count = 30):
         super().__init__()
         self.model = AutoModel.from_pretrained(model_name)
         hidden_state = self.model.config.hidden_size
-        self.linear = nn.Linear(hidden_state*2, 30)
+        self.linear = nn.Linear(hidden_state*2, label_count)
         self.dense = nn.Linear(hidden_state*2,hidden_state*2)
         self.tanh = nn.Tanh()
         self.dropout = nn.Dropout(0.1)

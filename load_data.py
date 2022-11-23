@@ -38,7 +38,7 @@ class Original_Dataset(Dataset):
 
 
 class RE_Dataset(Dataset):
-    def __init__(self, data_path, tokenizer, mode="train"):
+    def __init__(self, data_path, tokenizer, so_combine, mode="train"):
         pd_dataset = pd.read_csv(data_path)
         raw_dataset = preprocessing_dataset(pd_dataset)
         raw_labels = raw_dataset["label"].values
@@ -49,7 +49,7 @@ class RE_Dataset(Dataset):
             self.data["input_ids"].tolist(), tokenizer, "@", "^"
         )  # subject marker : @ obj marker: ^
         if mode == "train":
-            self.labels = label_to_num(raw_labels)
+            self.labels = label_to_num(raw_labels, so_combine)
         elif mode == "prediction":
             self.labels = list(map(int, raw_labels))
         else:
@@ -177,9 +177,9 @@ def load_data(dataset_dir):
     return dataset
 
 
-def label_to_num(label):
+def label_to_num(label, so_combine):
     num_label = []
-    with open("dict_label_to_num.pkl", "rb") as f:
+    with open(f"/opt/ml/level2_klue_nlp-14/recent_pkl/{so_combine}_label2num.pkl", "rb") as f:
         dict_label_to_num = pickle.load(f)
     for v in label:
         num_label.append(dict_label_to_num[v])
