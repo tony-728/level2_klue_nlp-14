@@ -82,15 +82,21 @@ def preprocessing_dataset(dataset):
         se = subj_dict["end_idx"]
         os = obj_dict["start_idx"]
         oe = obj_dict["end_idx"]
+        st = subj_dict["type"]
+        ot = obj_dict["type"]
         if os < ss:
             preprocessed_sentences.append(
                 (
                     k[:os]
-                    + " ^ "
+                    + " ^ ◇ "
+                    + ot
+                    + " ◇ "
                     + k[os : oe + 1]
                     + " ^ "
                     + k[oe + 1 : ss]
-                    + " @ "
+                    + " @ □ "
+                    + st
+                    + " □ "
                     + k[ss : se + 1]
                     + " @ "
                     + k[se + 1 :]
@@ -100,11 +106,15 @@ def preprocessing_dataset(dataset):
             preprocessed_sentences.append(
                 (
                     k[:ss]
-                    + " @ "
+                    + " @ □ "
+                    + st
+                    + " □ "
                     + k[ss : se + 1]
                     + " @ "
                     + k[se + 1 : os]
-                    + " ^ "
+                    + " ^ ◇ "
+                    + ot
+                    + " ◇ "
                     + k[os : oe + 1]
                     + " ^ "
                     + k[se + 1 :]
