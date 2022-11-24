@@ -105,7 +105,7 @@ def set_train(config: Dict):
 
     model = Model(config["model_name"])
     optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"])
-    
+
     return model, train_dataloader, val_dataloader, optimizer
 
 
@@ -156,8 +156,13 @@ def training(
 
     accumulation_step = config["accumulation_step"]
 
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer, lr_lambda = lambda epoch: 0.95 ** epoch, last_epoch=-1, verbose=False)
-    
+    scheduler = torch.optim.lr_scheduler.LambdaLR(
+        optimizer=optimizer,
+        lr_lambda=lambda epoch: 0.95**epoch,
+        last_epoch=-1,
+        verbose=False,
+    )
+
     for epoch_num in range(config["epoch"]):
         # train
         model.train()
@@ -181,17 +186,15 @@ def training(
                     if (i + 1) % accumulation_step:
                         continue
 
-                    optimizer.step()
-                    optimizer.zero_grad()
-
-                else:
-                    optimizer.step()
-                    optimizer.zero_grad()
+                optimizer.step()
+                optimizer.zero_grad()
+                scheduler.step()
 
                 epoch_loss.append(running_loss)
                 tepoch.set_postfix(loss=running_loss)
 
                 if config["wandb"]:
+                    wandb.log({"train_learning_rate": scheduler.get_lr()[0]})
                     wandb.log({"train_loss": running_loss})
 
                 running_loss = 0.0
@@ -199,8 +202,6 @@ def training(
             print(
                 f"epoch: {epoch_num} train loss: {float(sum(epoch_loss) / len(epoch_loss)):.3f}"
             )
-        scheduler.step()
-        print(scheduler.get_lr())
         # evaluation
         val_loss = []
         val_pred = []
@@ -364,3 +365,14 @@ def train(config: Dict) -> Optional[str]:
         )
 
         return save_model_path
+
+
+if __name__ == "__main__":
+    import json
+
+    config_file = "/opt/ml/level2_klue_nlp-14/config/klue-roberta-large-config.json"
+
+    with open(config_file, "r") as f:
+        config = json.load(f)
+
+    train(config)
