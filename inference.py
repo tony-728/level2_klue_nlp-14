@@ -209,5 +209,5 @@ if __name__ == "__main__":
     for i in subject_list:
         for j in object_list:
             so_combine = f"{i}_{j}"
-            model_path = f"/opt/ml/level2_klue_nlp-14/best_model/{config["model_name"]}RECENT/{config["model_name"]}RECENT_{so_combine}_{spinfo}.bin" #모델 주소 변경
+            model_path = f"/opt/ml/level2_klue_nlp-14/best_model/{config["model_name"]}RECENT/{config["model_name"]}RECENT_{so_combine}_{spinfo}.bin"
             inference(config, model_path, so_combine)
