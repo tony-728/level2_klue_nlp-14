@@ -105,7 +105,7 @@ def set_train(config: Dict):
 
     model = Model(config["model_name"])
     optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"])
-
+    
     return model, train_dataloader, val_dataloader, optimizer
 
 
@@ -156,6 +156,8 @@ def training(
 
     accumulation_step = config["accumulation_step"]
 
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer, lr_lambda = lambda epoch: 0.95 ** epoch, last_epoch=-1, verbose=False)
+    
     for epoch_num in range(config["epoch"]):
         # train
         model.train()
@@ -197,7 +199,8 @@ def training(
             print(
                 f"epoch: {epoch_num} train loss: {float(sum(epoch_loss) / len(epoch_loss)):.3f}"
             )
-
+        scheduler.step()
+        print(scheduler.get_lr())
         # evaluation
         val_loss = []
         val_pred = []

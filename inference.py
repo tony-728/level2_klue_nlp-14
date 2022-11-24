@@ -195,6 +195,6 @@ if __name__ == "__main__":
 
     # print(config)
 
-    model_path = "/opt/ml/level2_klue_nlp-14/best_model/klue-bert-base/klue-bert-base_b32_e5_lr5e-05.bin"
+    model_path = "/opt/ml/nlp14/best_model/klue-roberta-large/klue-roberta-large_b8_e10_lr1e-05.bin"
 
     inference(config, model_path)
