@@ -158,7 +158,7 @@ def training(
 
     scheduler = torch.optim.lr_scheduler.LambdaLR(
         optimizer=optimizer,
-        lr_lambda=lambda epoch: 0.95**epoch,
+        lr_lambda=lambda epoch: 0.9**epoch,
         last_epoch=-1,
         verbose=False,
     )
@@ -188,7 +188,6 @@ def training(
 
                 optimizer.step()
                 optimizer.zero_grad()
-                scheduler.step()
 
                 epoch_loss.append(running_loss)
                 tepoch.set_postfix(loss=running_loss)
@@ -202,6 +201,7 @@ def training(
             print(
                 f"epoch: {epoch_num} train loss: {float(sum(epoch_loss) / len(epoch_loss)):.3f}"
             )
+            scheduler.step()
         # evaluation
         val_loss = []
         val_pred = []
