@@ -15,6 +15,7 @@ from tqdm import tqdm
 
 import load_data
 import utils
+import pickle as pickle
 
 from typing import Tuple, List, Dict
 
@@ -68,7 +69,7 @@ def inferencing(config, model, tokenized_sent, device) -> Tuple[List, List]:
     )
 
 
-def num_to_label(label: List) -> List:
+def num_to_label(label: List, so_combine) -> List:
     """
     숫자로 되어 있던 class를 원본 문자열 라벨로 변환 합니다.
 
@@ -83,7 +84,7 @@ def num_to_label(label: List) -> List:
         문자열 라벨 List
     """
     origin_label = []
-    with open("dict_num_to_label.pkl", "rb") as f:
+    with open(f"/opt/ml/level2_klue_nlp-14/recent_pkl/{so_combine}_num2label.pkl", "rb") as f:
         dict_num_to_label = pickle.load(f)
     for v in label:
         origin_label.append(dict_num_to_label[v])
@@ -112,12 +113,12 @@ def load_test_dataset(
     """
     df = pd.read_csv(dataset_dir)
 
-    Re_test_dataset = load_data.RE_Dataset(dataset_dir, tokenizer, "prediction")
+    Re_test_dataset = load_data.RE_Dataset(dataset_dir, tokenizer, so_combine, "prediction")
 
     return df["id"], Re_test_dataset
 
 
-def inference(config: Dict, model_path: str):
+def inference(config: Dict, model_path: str, so_combine):
     """
     주어진 config와 model_path를 사용하여 모델을 inference를 한다.
 
@@ -146,22 +147,25 @@ def inference(config: Dict, model_path: str):
     # load tokenizer
     Model_NAME = config["model_name"]
     tokenizer = AutoTokenizer.from_pretrained(Model_NAME)
+    with open(f'/opt/ml/level2_klue_nlp-14/recent_pkl/{so_combine}_label2num.pkl', 'rb') as f:
+        data = pickle.load(f)
+    label_count = len(data)
 
-    model = Model.Model(Model_NAME)
+    model = Model.Model(Model_NAME, label_count)
 
     model.load_state_dict(torch.load(model_path))
     # model.parameters
     model.to(device)
 
     ## load test datset
-    test_dataset_dir = config["test_data_path"]
+    test_dataset_dir = f"/opt/ml/dataset/test/{so_combine}_test.csv"
     test_id, Re_test_dataset = load_test_dataset(test_dataset_dir, tokenizer)
 
     ## predict answer
     pred_answer, output_prob = inferencing(
         config, model, Re_test_dataset, device
     )  # model에서 class 추론
-    pred_answer = num_to_label(pred_answer)  # 숫자로 된 class를 원래 문자열 라벨로 변환.
+    pred_answer = num_to_label(pred_answer, so_combine)  # 숫자로 된 class를 원래 문자열 라벨로 변환.
 
     ## make csv file with predicted answer
     #########################################################
@@ -174,10 +178,10 @@ def inference(config: Dict, model_path: str):
         }
     )
 
-    project = Model_NAME.replace("/", "-")
+    project = Model_NAME.replace("/", "-") + "RECENT"
     save_inference_dir = f"./prediction/{project}"
     if utils.create_directory(save_inference_dir):
-        save_inference_path = f"{save_inference_dir}/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.csv"
+        save_inference_path = f"{save_inference_dir}/{project}_{so_combine}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.csv"
 
         print(save_inference_path)
         output.to_csv(
@@ -192,9 +196,18 @@ if __name__ == "__main__":
 
     with open("config.json", "r") as f:
         config = json.load(f)
-
-    # print(config)
-
-    model_path = "/opt/ml/level2_klue_nlp-14/best_model/klue-roberta-large_b8_e10_lr1e-05_fourth.bin"
-
-    inference(config, model_path)
+    
+    spinfo = "b8_e10_lr1e-05"
+    
+    #none 확인
+    model_path = f"/opt/ml/level2_klue_nlp-14/best_model/{config["model_name"]}RECENT/{config["model_name"]}RECENT_{so_combine}_{spinfo}.bin"
+    inference(config, model_path, "none")
+    
+    #label12 확인
+    subject_list = ["PER", "ORG"]
+    object_list = ["DAT", "LOC", "NOH", "ORG", "PER", "POH"]
+    for i in subject_list:
+        for j in object_list:
+            so_combine = f"{i}_{j}"
+            model_path = f"/opt/ml/level2_klue_nlp-14/best_model/{config["model_name"]}RECENT/{config["model_name"]}RECENT_{so_combine}_{spinfo}.bin" #모델 주소 변경
+            inference(config, model_path, so_combine)
