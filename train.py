@@ -194,7 +194,7 @@ def training(
                 tepoch.set_postfix(loss=running_loss)
 
                 if config["wandb"]:
-                    wandb.log({"train_learning_rate": scheduler.get_lr()[0]})
+                    wandb.log({"train_learning_rate": float(scheduler.get_lr()[0])})
                     wandb.log({"train_loss": running_loss})
 
                 running_loss = 0.0
@@ -365,14 +365,3 @@ def train(config: Dict) -> Optional[str]:
         )
 
         return save_model_path
-
-
-if __name__ == "__main__":
-    import json
-
-    config_file = "/opt/ml/level2_klue_nlp-14/config/klue-roberta-large-config.json"
-
-    with open(config_file, "r") as f:
-        config = json.load(f)
-
-    train(config)
