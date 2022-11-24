@@ -78,12 +78,23 @@ def preprocessing_dataset(dataset):
 
         subject_entity.append(subj_dict["word"])
         object_entity.append(obj_dict["word"])
+
+        type_en_ko = {
+            "PER": "사람",
+            "ORG": "단체",
+            "POH": "기타",
+            "DAT": "날짜",
+            "LOC": "장소",
+            "NOH": "수량",
+        }
+
         ss = subj_dict["start_idx"]
         se = subj_dict["end_idx"]
         os = obj_dict["start_idx"]
         oe = obj_dict["end_idx"]
-        st = subj_dict["type"]
-        ot = obj_dict["type"]
+        st = type_en_ko[subj_dict["type"]]
+        ot = type_en_ko[obj_dict["type"]]
+
         if os < ss:
             preprocessed_sentences.append(
                 (
