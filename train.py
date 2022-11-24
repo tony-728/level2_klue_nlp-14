@@ -82,7 +82,7 @@ def set_train(config: Dict, so_combine):
     """
     tokenizer = AutoTokenizer.from_pretrained(config["model_name"])
 
-    train_dataset = RE_Dataset(f"/opt/ml/dataset/train/{so_combine}.csv", tokenizer, so_combine)
+    train_dataset = RE_Dataset(f"/opt/ml/dataset/train/{so_combine}_train.csv", tokenizer, so_combine)
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset, batch_size=config["batch_size"], shuffle=True
     )
@@ -100,7 +100,7 @@ def set_train(config: Dict, so_combine):
 
         return kf, train_dataset
 
-    val_dataset = RE_Dataset(f"/opt/ml/dataset/train/{so_combine}.csv", tokenizer, so_combine) #추후 추가해줘야됨
+    val_dataset = RE_Dataset(f"/opt/ml/dataset/train/{so_combine}_val.csv", tokenizer, so_combine) #추후 추가해줘야됨
     val_dataloader = torch.utils.data.DataLoader(
         val_dataset, batch_size=config["batch_size"], shuffle=False
     )
