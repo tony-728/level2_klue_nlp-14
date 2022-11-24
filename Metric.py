@@ -5,7 +5,7 @@ from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_sc
 
 
 def compute_loss(pred, labels):
-    loss = nn.CrossEntropyLoss()
+    loss = nn.CrossEntropyLoss(label_smoothing=0.1)
     return loss(pred, labels)
 
 
