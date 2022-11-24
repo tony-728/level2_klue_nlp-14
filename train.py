@@ -1,7 +1,8 @@
 import torch
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification
 from transformers import ElectraModel, ElectraTokenizer
-from sklearn.model_selection import KFold
+
+from sklearn.model_selection import StratifiedKFold
 
 from tqdm import tqdm
 import wandb
@@ -41,7 +42,7 @@ def set_wandb(config: Dict, model, project: str, fold: int = 0):
             reinit=True,
             entity=entity,
             project=project,
-            name=f"(fold: {fold}, batch:{config['batch_size']},epoch:{config['epoch']},lr:{config['lr']})",
+            name=f"(stkfold: {fold}, batch:{config['batch_size']},epoch:{config['epoch']},lr:{config['lr']})",
         )
     else:
         wandb.init(
@@ -88,14 +89,16 @@ def set_train(config: Dict):
     if config["k-fold"]:
         kfold_config = config["k-fold_config"]
         if kfold_config["shuffle"]:
-            kf = KFold(
+            kf = StratifiedKFold(
                 n_splits=kfold_config["num_splits"],
                 shuffle=True,
                 random_state=kfold_config["split_seed"],
             )
         else:
-            kf = KFold(n_splits=kfold_config["num_splits"], shuffle=False)
-
+            kf = StratifiedKFold(
+                n_splits=kfold_config["num_splits"], 
+                shuffle=False
+            )
         return kf, train_dataset
 
     val_dataset = RE_Dataset(config["val_data_path"], tokenizer)
@@ -311,7 +314,7 @@ def train(config: Dict) -> Optional[str]:
         total_auprc = []  # 각 폴드별로 나온 auprc 넣어서 최종적으로 평균 떄려서 출력
         total_accuracy = []  # 각 폴드별로 나온 accuracy 넣어서 최종적으로 평균 떄려서 출력
 
-        for fold, (train_idx, val_idx) in enumerate(kf.split(total_dataset)):
+        for fold, (train_idx, val_idx) in enumerate(kf.split(total_dataset, total_dataset.labels)):
             print("------------fold no.{}----------------------".format(fold))
             train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx)
             val_subsampler = torch.utils.data.SubsetRandomSampler(val_idx)
