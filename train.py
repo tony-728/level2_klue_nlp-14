@@ -200,6 +200,7 @@ def training(
                 f"epoch: {epoch_num} train loss: {float(sum(epoch_loss) / len(epoch_loss)):.3f}"
             )
         scheduler.step()
+        print(scheduler.get_lr())
         # evaluation
         val_loss = []
         val_pred = []
