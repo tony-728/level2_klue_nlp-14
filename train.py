@@ -1,6 +1,10 @@
 import torch
+from torch.cuda.amp import GradScaler
+
+import transformers
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification
 from transformers import ElectraModel, ElectraTokenizer
+
 from sklearn.model_selection import KFold
 
 from tqdm import tqdm
@@ -156,20 +160,26 @@ def training(
 
     accumulation_step = config["accumulation_step"]
 
-    scheduler = torch.optim.lr_scheduler.LambdaLR(
+    # scheduler setting
+    total_steps = int(len(train_dataloader) * config["epoch"] // accumulation_step)
+    warmup_ratio = 0.1  # warmup 10%
+    warmup_steps = int(total_steps * warmup_ratio)
+
+    scheduler = transformers.get_linear_schedule_with_warmup(
         optimizer=optimizer,
-        lr_lambda=lambda epoch: 0.9**epoch,
-        last_epoch=-1,
-        verbose=False,
+        num_warmup_steps=warmup_steps,
+        num_training_steps=total_steps,
     )
 
+    scaler = GradScaler()
+    num_steps = 0
     for epoch_num in range(config["epoch"]):
         # train
         model.train()
         epoch_loss = []
         running_loss = 0.0
         with tqdm(train_dataloader, unit="batch") as tepoch:
-            for i, (item, labels, markers) in enumerate(tepoch):
+            for step, (item, labels, markers) in enumerate(tepoch):
                 tepoch.set_description(f"Epoch {epoch_num}")
 
                 batch = {k: v.to(device) for k, v in item.items()}
@@ -180,21 +190,33 @@ def training(
                 loss = loss / accumulation_step
                 running_loss += loss.item()
 
-                loss.backward()
+                scaler.scale(loss).backward()
 
                 if accumulation_step > 1:
-                    if (i + 1) % accumulation_step:
+                    if (step + 1) % accumulation_step:
                         continue
 
-                optimizer.step()
+                num_steps += 1
+
+                # Unscales the gradients of optimizer's assigned params in-place
+                scaler.unscale_(optimizer)
+                # Since the gradients of optimizer's assigned params are unscaled, clips as usual:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 2)
+
+                scaler.step(optimizer)
+                scaler.update()
+                scheduler.step()
                 optimizer.zero_grad()
 
                 epoch_loss.append(running_loss)
                 tepoch.set_postfix(loss=running_loss)
 
                 if config["wandb"]:
-                    wandb.log({"train_learning_rate": float(scheduler.get_lr()[0])})
-                    wandb.log({"train_loss": running_loss})
+                    wandb.log(
+                        {"train_learning_rate": float(scheduler.get_lr()[0])},
+                        step=num_steps,
+                    )
+                    wandb.log({"train_loss": running_loss}, step=num_steps)
 
                 running_loss = 0.0
 
@@ -241,11 +263,11 @@ def training(
 
         # wandb logging
         if config["wandb"]:
-            wandb.log({"epoch": epoch_num})
-            wandb.log({"eval_loss": val_loss})
-            wandb.log({"eval_f1": metrics["micro f1 score"]})
-            wandb.log({"eval_auprc": metrics["auprc"]})
-            wandb.log({"eval_accuracy": metrics["accuracy"]})
+            wandb.log({"epoch": epoch_num}, step=num_steps)
+            wandb.log({"eval_loss": val_loss}, step=num_steps)
+            wandb.log({"eval_f1": metrics["micro f1 score"]}, step=num_steps)
+            wandb.log({"eval_auprc": metrics["auprc"]}, step=num_steps)
+            wandb.log({"eval_accuracy": metrics["accuracy"]}, step=num_steps)
 
         # model save
         if not config["k-fold"]:
@@ -336,7 +358,7 @@ def train(config: Dict) -> Optional[str]:
 
             model = Model(config["model_name"])
 
-            optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
+            optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"])
 
             val_loss, total_metrics = training(
                 config, model, train_dataloader, val_dataloader, optimizer, fold
