@@ -12,7 +12,7 @@ import wandb
 
 from Model import Model
 from Metric import compute_loss, compute_metrics
-from load_data import RE_Dataset
+from load_data import Dataset
 import utils
 from visualization import visualization_base
 
@@ -84,7 +84,7 @@ def set_train(config: Dict):
     """
     tokenizer = AutoTokenizer.from_pretrained(config["model_name"])
 
-    train_dataset = RE_Dataset(config["train_data_path"], tokenizer)
+    train_dataset = Dataset(config["train_data_path"], tokenizer)
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset, batch_size=config["batch_size"], shuffle=True
     )
@@ -102,7 +102,7 @@ def set_train(config: Dict):
 
         return kf, train_dataset
 
-    val_dataset = RE_Dataset(config["val_data_path"], tokenizer)
+    val_dataset = Dataset(config["val_data_path"], tokenizer)
     val_dataloader = torch.utils.data.DataLoader(
         val_dataset, batch_size=config["batch_size"], shuffle=False
     )
@@ -185,7 +185,8 @@ def training(
                 batch = {k: v.to(device) for k, v in item.items()}
                 markers = {k: v.to(device) for k, v in markers.items()}
                 pred = model(batch, markers)
-                loss = compute_loss(pred, labels.to(device))
+                # loss = compute_loss(pred, labels.to(device))
+                loss = pred.loss
 
                 loss = loss / accumulation_step
                 running_loss += loss.item()
