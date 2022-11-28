@@ -2,7 +2,7 @@ import torch
 from torch.cuda.amp import GradScaler
 
 import transformers
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, T5Tokenizer
 from transformers import ElectraModel, ElectraTokenizer
 
 from sklearn.model_selection import KFold
@@ -82,7 +82,8 @@ def set_train(config: Dict):
     Optional
         _description_
     """
-    tokenizer = AutoTokenizer.from_pretrained(config["model_name"])
+    tokenizer = T5Tokenizer.from_pretrained(config["model_name"])
+    
 
     train_dataset = Dataset(config["train_data_path"], tokenizer)
     train_dataloader = torch.utils.data.DataLoader(
@@ -179,12 +180,13 @@ def training(
         epoch_loss = []
         running_loss = 0.0
         with tqdm(train_dataloader, unit="batch") as tepoch:
-            for step, (item, labels, markers) in enumerate(tepoch):
+            for step, (item, labels) in enumerate(tepoch):
                 tepoch.set_description(f"Epoch {epoch_num}")
 
                 batch = {k: v.to(device) for k, v in item.items()}
-                markers = {k: v.to(device) for k, v in markers.items()}
-                pred = model(batch, markers)
+                labels = {k: v.to(device) for k, v in labels.items()}
+                # markers = {k: v.to(device) for k, v in markers.items()}
+                pred = model(batch, labels)
                 # loss = compute_loss(pred, labels.to(device))
                 loss = pred.loss
 
@@ -231,19 +233,21 @@ def training(
         val_labels = []
         model.eval()
         with torch.no_grad():
-            for i, (item, labels, markers) in enumerate(
+            for i, (item, labels) in enumerate(
                 tqdm(val_dataloader, desc="Eval")
             ):
                 batch = {k: v.to(device) for k, v in item.items()}
-                pred = model(batch, markers)
+                labels = {k: v.to(device) for k, v in labels.items()}
+                pred = model(batch, labels)
                 val_pred.append(pred)
                 val_labels.append(labels)
 
-                loss = compute_loss(pred, labels.to(device))
+                # loss = compute_loss(pred, labels.to(device))
+                loss = pred.loss
                 val_loss.append(loss)
 
-        val_pred = torch.cat(val_pred, dim=0).detach().cpu().numpy()
-        val_labels = torch.cat(val_labels, dim=0).detach().cpu().numpy()
+        # val_pred = torch.cat(val_pred, dim=0).detach().cpu().numpy()
+        # val_labels = torch.cat(val_labels, dim=0).detach().cpu().numpy()
 
         metrics = compute_metrics(val_pred, val_labels)
         print(metrics)

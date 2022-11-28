@@ -7,6 +7,7 @@ import pandas as pd
 
 import pickle as pickle
 
+
 # GPU가 여러개 일때는 병렬처리가 필요할 수 있지만
 # 현재는 GPU가 하나이기 때문에 False로 변경해도 무방해보임
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -15,16 +16,16 @@ class Dataset(Dataset):
     def __init__(self, data_path, tokenizer, mode="train"):
         pd_dataset = pd.read_csv(data_path)
         raw_dataset = preprocessing_dataset(pd_dataset)
-        raw_labels = raw_dataset["label"].values
+        # raw_labels = raw_dataset["label"].values
 
         self.data = tokenize_dataset(raw_dataset, tokenizer, "item")
-        self.label =tokenize_dataset(raw_dataset, tokenizer, "label")
+        self.labels =tokenize_dataset(raw_dataset, tokenizer, "label")
 
     def __getitem__(self, idx):
-        task_prefix = "classificate the relation: "
-        item = {key: task_prefix +val[idx].clone().detach() for key, val in self.data.items()}
-        labels = torch.tensor(self.labels[idx])
-        return item, labels
+        item = {key: val[idx].clone().detach() for key, val in self.data.items()}
+        labels = {key: val[idx].clone().detach() for key, val in self.labels.items()}
+        # labels = torch.tensor(self.labels[idx])
+        return item, labels # same d
 
     def __len__(self):
         return len(self.labels)
@@ -58,43 +59,50 @@ def preprocessing_dataset(dataset):
         oe = obj_dict["end_idx"]
         st = type_en_ko[subj_dict["type"]]
         ot = type_en_ko[obj_dict["type"]]
+        
+        task_frefix = '관계를 구분하세요 : '
 
-        if os < ss:
-            preprocessed_sentences.append(
-                (
-                    k[:os]
-                    + " ^ ◇ "
-                    + ot
-                    + " ◇ "
-                    + k[os : oe + 1]
-                    + " ^ "
-                    + k[oe + 1 : ss]
-                    + " @ □ "
-                    + st
-                    + " □ "
-                    + k[ss : se + 1]
-                    + " @ "
-                    + k[se + 1 :]
-                )
-            )
-        else:
-            preprocessed_sentences.append(
-                (
-                    k[:ss]
-                    + " @ □ "
-                    + st
-                    + " □ "
-                    + k[ss : se + 1]
-                    + " @ "
-                    + k[se + 1 : os]
-                    + " ^ ◇ "
-                    + ot
-                    + " ◇ "
-                    + k[os : oe + 1]
-                    + " ^ "
-                    + k[se + 1 :]
-                )
-            )
+        preprocessed_sentences.append(task_frefix + subj_dict['word'] + ' ' + obj_dict['word'] + ' ' + k)
+
+        # if os < ss:
+        #     preprocessed_sentences.append(
+        #         (   task_frefix
+        #             +
+        #             k[:os]
+        #             + " ^ ◇ "
+        #             + ot
+        #             + " ◇ "
+        #             + k[os : oe + 1]
+        #             + " ^ "
+        #             + k[oe + 1 : ss]
+        #             + " @ □ "
+        #             + st
+        #             + " □ "
+        #             + k[ss : se + 1]
+        #             + " @ "
+        #             + k[se + 1 :]
+        #         )
+        #     )
+        # else:
+        #     preprocessed_sentences.append(
+        #         (   task_frefix
+        #             +
+        #             k[:ss]
+        #             + " @ □ "
+        #             + st
+        #             + " □ "
+        #             + k[ss : se + 1]
+        #             + " @ "
+        #             + k[se + 1 : os]
+        #             + " ^ ◇ "
+        #             + ot
+        #             + " ◇ "
+        #             + k[os : oe + 1]
+        #             + " ^ "
+        #             + k[se + 1 :]
+        #         )
+        #     )
+        
         """
         if want to use entity's type
         subj_type = i['type']
@@ -105,8 +113,8 @@ def preprocessing_dataset(dataset):
         {
             "id": dataset["id"],
             "sentence": preprocessed_sentences,
-            "subject_entity": subject_entity,
-            "object_entity": object_entity,
+            # "subject_entity": subject_entity,
+            # "object_entity": object_entity,
             "label": dataset["label"],
         }
     )
@@ -116,7 +124,7 @@ def tokenize_dataset(dataset, tokenizer, type):
 
     if type == "item":
         tokenized_sentences = tokenizer(
-            dataset['subject_entity'],
+            dataset['sentence'].tolist(),
             return_tensors="pt",
             padding="max_length",
             truncation=True,
@@ -126,7 +134,7 @@ def tokenize_dataset(dataset, tokenizer, type):
 
     elif type == 'label':
         tokenized_sentences = tokenizer(
-            dataset["label"],
+            dataset["label"].tolist(),
             return_tensors="pt",
             padding="max_length",
             truncation=True,
