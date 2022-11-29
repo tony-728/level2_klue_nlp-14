@@ -48,6 +48,7 @@ class RE_Dataset(Dataset):
         self.marker_idx = get_marker_idx(
             self.data["input_ids"].tolist(), tokenizer, "@", "^"
         )  # subject marker : @ obj marker: ^
+
         if mode == "train":
             self.labels = label_to_num(raw_labels)
         elif mode == "prediction":
@@ -66,10 +67,39 @@ class RE_Dataset(Dataset):
         return len(self.labels)
 
 
+class RE_Dataset_for_T5(Dataset):
+    def __init__(self, data_path, tokenizer, mode="train"):
+        pd_dataset = pd.read_csv(data_path)
+        raw_dataset = preprocessing_dataset(pd_dataset)
+        raw_labels = raw_dataset["label"].values
+
+        self.data = tokenize_dataset(raw_dataset, tokenizer)
+
+        if mode == "train":
+            self.labels = label_to_num(raw_labels)
+        elif mode == "prediction":
+            self.labels = list(map(int, raw_labels))
+        else:
+            print("check your mode")
+            exit()
+
+    def __getitem__(self, idx):
+        item = {key: val[idx].clone().detach() for key, val in self.data.items()}
+        labels = torch.tensor(self.labels[idx])
+        return item, labels
+
+    def __len__(self):
+        return len(self.labels)
+
+
 def preprocessing_dataset(dataset):
     subject_entity = []
     object_entity = []
     preprocessed_sentences = []
+
+    # T5에게 줄 tast 문장장
+    task_sentence = []
+
     for i, j, k in zip(
         dataset["subject_entity"], dataset["object_entity"], dataset["sentence"]
     ):
@@ -94,6 +124,10 @@ def preprocessing_dataset(dataset):
         oe = obj_dict["end_idx"]
         st = type_en_ko[subj_dict["type"]]
         ot = type_en_ko[obj_dict["type"]]
+
+        # subject와 object의 관계
+        t_sentence = f"{subj_dict['word']}와 {obj_dict['word']}의 관계는 무엇인가?"
+        task_sentence.append(t_sentence)
 
         if os < ss:
             preprocessed_sentences.append(
@@ -140,6 +174,7 @@ def preprocessing_dataset(dataset):
         {
             "id": dataset["id"],
             "sentence": preprocessed_sentences,
+            "task_sentence": task_sentence,
             "subject_entity": subject_entity,
             "object_entity": object_entity,
             "label": dataset["label"],
@@ -151,6 +186,7 @@ def preprocessing_dataset(dataset):
 def tokenize_dataset(dataset, tokenizer):
 
     tokenized_sentences = tokenizer(
+        dataset["task_sentence"].tolist(),
         dataset["sentence"].tolist(),
         return_tensors="pt",
         padding="max_length",
