@@ -233,11 +233,11 @@ def training(
         val_labels = []
         model.eval()
         with torch.no_grad():
-            for i, (item, labels, markers) in enumerate(
+            for i, (item, labels) in enumerate(
                 tqdm(val_dataloader, desc="Eval")
-            ):
+            ):  # marker 사용 확인
                 batch = {k: v.to(device) for k, v in item.items()}
-                pred = model(batch, markers)
+                pred = model(batch)  # marker 사용 확인
                 val_pred.append(pred)
                 val_labels.append(labels)
 
