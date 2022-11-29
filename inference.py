@@ -47,12 +47,12 @@ def inferencing(config, model, tokenized_sent, device) -> Tuple[List, List]:
     model.eval()
     output_pred = []
     output_prob = []
-    for i, (data, labels, markers) in enumerate(tqdm(dataloader)):
+    for i, (data, labels) in enumerate(tqdm(dataloader)):  # marker 사용여부 확인
         with torch.no_grad():
             batch = {k: v.to(device) for k, v in data.items()}
-            markers = {k: v.to(device) for k, v in markers.items()}
+            # markers = {k: v.to(device) for k, v in markers.items()}
 
-            outputs = model(batch=batch, markers=markers)
+            outputs = model(batch=batch)  # marker 사용여부확인
 
         logits = outputs
         prob = F.softmax(logits, dim=-1).detach().cpu().numpy()
@@ -112,7 +112,8 @@ def load_test_dataset(
     """
     df = pd.read_csv(dataset_dir)
 
-    Re_test_dataset = load_data.RE_Dataset(dataset_dir, tokenizer, "prediction")
+    # 사용한 모델에 따라서 변경해주어야함
+    Re_test_dataset = load_data.RE_Dataset_for_T5(dataset_dir, tokenizer, "prediction")
 
     return df["id"], Re_test_dataset
 
@@ -147,7 +148,8 @@ def inference(config: Dict, model_path: str):
     Model_NAME = config["model_name"]
     tokenizer = AutoTokenizer.from_pretrained(Model_NAME)
 
-    model = Model.Model(Model_NAME)
+    # 사용한 모델에 따라서 변경해주어야함
+    model = Model.Type_Entity_LSTM_T5Model(Model_NAME)
 
     model.load_state_dict(torch.load(model_path))
     # model.parameters
@@ -190,11 +192,12 @@ def inference(config: Dict, model_path: str):
 if __name__ == "__main__":
     import json
 
-    with open("config.json", "r") as f:
+    absolute_config_path = "/opt/ml/level2_klue_nlp-14/config"
+
+    config_file = f"{absolute_config_path}/KETI-AIR-ke-t5-base-ko.json"
+    model_path = "/opt/ml/level2_klue_nlp-14/best_model/KETI-AIR-ke-t5-base-ko/KETI-AIR-ke-t5-base-ko_b16_e5_lr3e-05.bin"
+
+    with open(config_file, "r") as f:
         config = json.load(f)
-
-    # print(config)
-
-    model_path = "/opt/ml/nlp14/best_model/klue-roberta-large/klue-roberta-large_b8_e10_lr1e-05.bin"
 
     inference(config, model_path)
