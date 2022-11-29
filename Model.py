@@ -12,6 +12,9 @@ class Model(nn.Module):
         self.model = T5ForConditionalGeneration.from_pretrained(model_name)
 
     def forward(self, input, labels):
-        outputs = self.model(input_ids=input['input_ids'], attention_mask=input['attention_mask'], labels=labels['input_ids'])
+        outputs = self.model(input_ids=input['input_ids'], attention_mask=input['attention_mask'], labels=labels['input_ids'], decoder_attention_mask=labels['attention_mask'])
 
         return outputs
+
+    def generate(self, **karg):
+        return self.model.generate(**karg)

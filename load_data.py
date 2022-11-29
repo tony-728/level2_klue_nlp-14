@@ -14,12 +14,12 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 class Dataset(Dataset):
     def __init__(self, data_path, tokenizer, mode="train"):
-        pd_dataset = pd.read_csv(data_path)
-        raw_dataset = preprocessing_dataset(pd_dataset)
+        self.pd_dataset = pd.read_csv(data_path)
+        self.raw_dataset = preprocessing_dataset(self.pd_dataset)
         # raw_labels = raw_dataset["label"].values
 
-        self.data = tokenize_dataset(raw_dataset, tokenizer, "item")
-        self.labels =tokenize_dataset(raw_dataset, tokenizer, "label")
+        self.data = tokenize_dataset(self.raw_dataset, tokenizer, "item")
+        self.labels =tokenize_dataset(self.raw_dataset, tokenizer, "label")
 
     def __getitem__(self, idx):
         item = {key: val[idx].clone().detach() for key, val in self.data.items()}
@@ -28,12 +28,16 @@ class Dataset(Dataset):
         return item, labels # same d
 
     def __len__(self):
-        return len(self.labels)
+        return self.labels['input_ids'].size()[0]
 
 def preprocessing_dataset(dataset):
     subject_entity = []
     object_entity = []
     preprocessed_sentences = []
+    numbered_label = []
+    for i in dataset['label']:
+        re_label = change_label(i)
+        numbered_label.append(re_label)
 
     for i, j, k in zip(
         dataset["subject_entity"], dataset["object_entity"], dataset["sentence"]
@@ -44,25 +48,15 @@ def preprocessing_dataset(dataset):
         subject_entity.append(subj_dict["word"])
         object_entity.append(obj_dict["word"])
 
-        type_en_ko = {
-            "PER": "사람",
-            "ORG": "단체",
-            "POH": "기타",
-            "DAT": "날짜",
-            "LOC": "장소",
-            "NOH": "수량",
-        }
-
         ss = subj_dict["start_idx"]
         se = subj_dict["end_idx"]
         os = obj_dict["start_idx"]
         oe = obj_dict["end_idx"]
-        st = type_en_ko[subj_dict["type"]]
-        ot = type_en_ko[obj_dict["type"]]
         
-        task_frefix = '관계를 구분하세요 : '
+        task_frefix = '다음 두 단어의 관계를 구분하세요 : '
 
-        preprocessed_sentences.append(task_frefix + subj_dict['word'] + ' ' + obj_dict['word'] + ' ' + k)
+        preprocessed_sentences.append(f"{subj_dict['word']}와 {obj_dict['word']}의 관계를 구분하세요 : " + k)
+
 
         # if os < ss:
         #     preprocessed_sentences.append(
@@ -115,7 +109,8 @@ def preprocessing_dataset(dataset):
             "sentence": preprocessed_sentences,
             # "subject_entity": subject_entity,
             # "object_entity": object_entity,
-            "label": dataset["label"],
+            # "label": dataset["label"],
+            "label": numbered_label
         }
     )
     return output_dataset
@@ -144,9 +139,44 @@ def tokenize_dataset(dataset, tokenizer, type):
 
     return tokenized_sentences
 
-def load_data(dataset_dir):
-    """csv 파일을 경로에 맡게 불러 옵니다."""
-    pd_dataset = pd.read_csv(dataset_dir)
-    dataset = preprocessing_dataset(pd_dataset)
+def change_label(label:str):
+    label_list = [
+    "no_relation",
+    "org:top_members/employees",
+    "org:members",
+    "org:product",
+    "per:title",
+    "org:alternate_names",
+    "per:employee_of",
+    "org:place_of_headquarters",
+    "per:product",
+    "org:number_of_employees/members",
+    "per:children",
+    "per:place_of_residence",
+    "per:alternate_names",
+    "per:other_family",
+    "per:colleagues",
+    "per:origin",
+    "per:siblings",
+    "per:spouse",
+    "org:founded",
+    "org:political/religious_affiliation",
+    "org:member_of",
+    "per:parents",
+    "org:dissolved",
+    "per:schools_attended",
+    "per:date_of_death",
+    "per:date_of_birth",
+    "per:place_of_birth",
+    "per:place_of_death",
+    "org:founded_by",
+    "per:religion",
+    ]
+    return str(label_list.index(label))
 
-    return dataset
+# def load_data(dataset_dir):
+#     """csv 파일을 경로에 맡게 불러 옵니다."""
+#     pd_dataset = pd.read_csv(dataset_dir)
+#     dataset = preprocessing_dataset(pd_dataset)
+
+#     return dataset

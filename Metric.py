@@ -17,17 +17,17 @@ def compute_metrics(pred, labels):
     # preds = pred.predictions.argmax(-1)
     # probs = pred.predictions
 
-    preds = pred.argmax(-1)
-    probs = pred
+    # preds = pred.argmax(-1)
+    # probs = pred
 
     # calculate accuracy using sklearn's function
-    f1 = klue_re_micro_f1(preds, labels)
-    auprc = klue_re_auprc(probs, labels)
-    acc = accuracy_score(labels, preds)  # 리더보드 평가에는 포함되지 않습니다.
+    f1 = klue_re_micro_f1(pred, labels)
+    auprc = klue_re_auprc(pred, labels)
+    acc = accuracy_score(pred, labels)  # 리더보드 평가에는 포함되지 않습니다.
 
     return {
         "micro f1 score": f1,
-        "auprc": auprc,
+        # "auprc": auprc,
         "accuracy": acc,
     }
 
@@ -69,7 +69,7 @@ def klue_re_micro_f1(preds, labels):
     label_indices = list(range(len(label_list)))
     label_indices.remove(no_relation_label_idx)
     return (
-        sklearn.metrics.f1_score(labels, preds, average="micro", labels=label_indices)
+        sklearn.metrics.f1_score(labels, preds, average="micro", labels=np.unique(labels)) #labels=label_indices 
         * 100.0
     )
 

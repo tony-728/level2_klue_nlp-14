@@ -22,7 +22,7 @@ def main(config: Dict):
         "train_data_path": "<train data path>",
         "val_data_path": "<val data path>",
         "test_data_path": "<test data path>",
-        "model_name": "<pre-trained model name>",
+        "model_name": "<pre-trained model nZame>",
         "epoch": number of epoch,
         "batch_size": number of batch_size,
         "lr": learning rate,

@@ -4,7 +4,7 @@ from torch.cuda.amp import GradScaler
 import transformers
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, T5Tokenizer
 from transformers import ElectraModel, ElectraTokenizer
-
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 from sklearn.model_selection import KFold
 
 from tqdm import tqdm
@@ -82,6 +82,7 @@ def set_train(config: Dict):
     Optional
         _description_
     """
+    global tokenizer
     tokenizer = T5Tokenizer.from_pretrained(config["model_name"])
     
 
@@ -109,6 +110,8 @@ def set_train(config: Dict):
     )
 
     model = Model(config["model_name"])
+    # model = T5ForConditionalGeneration.from_pretrained(config["model_name"])
+
     optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"])
 
     return model, train_dataloader, val_dataloader, optimizer
@@ -186,9 +189,11 @@ def training(
                 batch = {k: v.to(device) for k, v in item.items()}
                 labels = {k: v.to(device) for k, v in labels.items()}
                 # markers = {k: v.to(device) for k, v in markers.items()}
-                pred = model(batch, labels)
+                output = model(batch, labels)
+                # output = model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=labels['input_ids'], decoder_attention_mask=labels['attention_mask'])
+
                 # loss = compute_loss(pred, labels.to(device))
-                loss = pred.loss
+                loss, prediction_scores = output[:2] # loss, logit
 
                 loss = loss / accumulation_step
                 running_loss += loss.item()
@@ -227,6 +232,7 @@ def training(
                 f"epoch: {epoch_num} train loss: {float(sum(epoch_loss) / len(epoch_loss)):.3f}"
             )
             scheduler.step()
+
         # evaluation
         val_loss = []
         val_pred = []
@@ -238,33 +244,46 @@ def training(
             ):
                 batch = {k: v.to(device) for k, v in item.items()}
                 labels = {k: v.to(device) for k, v in labels.items()}
-                pred = model(batch, labels)
-                val_pred.append(pred)
-                val_labels.append(labels)
+                output = model(batch, labels)
+                # output = model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=labels['input_ids'], decoder_attention_mask=labels['attention_mask'])
+                loss, prediction_scores = output[:2]
 
-                # loss = compute_loss(pred, labels.to(device))
-                loss = pred.loss
+                # val_labels.append(labels)
+
+                generated_ids = model.generate(
+                    input_ids = batch['input_ids'],
+                    attention_mask = batch['attention_mask'],
+                    max_new_tokens = 3
+                )
+                
+                preds = [tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=True)for g in generated_ids]
+                targets = [tokenizer.decode(t, skip_special_tokens=True, clean_up_tokenization_spaces=True)for t in labels['input_ids']]
+
                 val_loss.append(loss)
+                for target, pred in zip(targets, preds):
+                    val_labels.append(target)
+                    val_pred.append(pred)
 
         # val_pred = torch.cat(val_pred, dim=0).detach().cpu().numpy()
         # val_labels = torch.cat(val_labels, dim=0).detach().cpu().numpy()
 
-        metrics = compute_metrics(val_pred, val_labels)
-        print(metrics)
+        for label, pred in zip(val_labels, val_pred):
+            print(f'label : {label}, pred : {pred}, len of pred : {len(pred)}')
+        metrics = compute_metrics(val_labels, val_pred)
 
         val_loss = float(sum(val_loss) / len(val_loss))
         print(f"epoch: {epoch_num} val loss: {val_loss:.3f}")
 
         # 시각화
-        if not config["k-fold"]:
-            visualization_base(
-                config["val_data_path"],
-                val_pred,
-                val_labels,
-                epoch_num,
-                metrics,
-                val_loss,
-            )
+        # if not config["k-fold"]:
+        #     visualization_base(
+        #         config["val_data_path"],
+        #         val_pred,
+        #         val_labels,
+        #         epoch_num,
+        #         metrics,
+        #         val_loss,
+        #     )
 
         # wandb logging
         if config["wandb"]:
@@ -276,7 +295,7 @@ def training(
 
         # model save
         if not config["k-fold"]:
-            if metrics["micro f1 score"] > highest_valid_f1:
+            if metrics["micro f1 score"] >= highest_valid_f1:
                 save_model_dir = f"./best_model/{project}"
                 if utils.create_directory(save_model_dir):
                     save_model_path = f"{save_model_dir}/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}.bin"
