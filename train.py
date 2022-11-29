@@ -10,9 +10,9 @@ from sklearn.model_selection import KFold
 from tqdm import tqdm
 import wandb
 
-from Model import Model
+import Model
 from Metric import compute_loss, compute_metrics
-from load_data import RE_Dataset
+import load_data
 import utils
 from visualization import visualization_base
 
@@ -84,7 +84,8 @@ def set_train(config: Dict):
     """
     tokenizer = AutoTokenizer.from_pretrained(config["model_name"])
 
-    train_dataset = RE_Dataset(config["train_data_path"], tokenizer)
+    # dataset 변경해야함
+    train_dataset = load_data.RE_Dataset_for_T5(config["train_data_path"], tokenizer)
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset, batch_size=config["batch_size"], shuffle=True
     )
@@ -102,12 +103,14 @@ def set_train(config: Dict):
 
         return kf, train_dataset
 
-    val_dataset = RE_Dataset(config["val_data_path"], tokenizer)
+    # dataset 변경해야함
+    val_dataset = load_data.RE_Dataset_for_T5(config["val_data_path"], tokenizer)
     val_dataloader = torch.utils.data.DataLoader(
         val_dataset, batch_size=config["batch_size"], shuffle=False
     )
 
-    model = Model(config["model_name"])
+    # 사용할 모델을 변경해야함
+    model = Model.Type_Entity_LSTM_T5Model(config["model_name"])
     optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"])
 
     return model, train_dataloader, val_dataloader, optimizer
@@ -179,12 +182,12 @@ def training(
         epoch_loss = []
         running_loss = 0.0
         with tqdm(train_dataloader, unit="batch") as tepoch:
-            for step, (item, labels, markers) in enumerate(tepoch):
+            for step, (item, labels) in enumerate(tepoch):  # marker를 사용하려면 추가해야함
                 tepoch.set_description(f"Epoch {epoch_num}")
 
                 batch = {k: v.to(device) for k, v in item.items()}
-                markers = {k: v.to(device) for k, v in markers.items()}
-                pred = model(batch, markers)
+                # markers = {k: v.to(device) for k, v in markers.items()} # marker를 사용하려면 추가해야함
+                pred = model(batch)
                 loss = compute_loss(pred, labels.to(device))
 
                 loss = loss / accumulation_step
@@ -251,15 +254,15 @@ def training(
         print(f"epoch: {epoch_num} val loss: {val_loss:.3f}")
 
         # 시각화
-        if not config["k-fold"]:
-            visualization_base(
-                config["val_data_path"],
-                val_pred,
-                val_labels,
-                epoch_num,
-                metrics,
-                val_loss,
-            )
+        # if not config["k-fold"]:
+        # visualization_base(
+        #     config["val_data_path"],
+        #     val_pred,
+        #     val_labels,
+        #     epoch_num,
+        #     metrics,
+        #     val_loss,
+        # )
 
         # wandb logging
         if config["wandb"]:
@@ -356,7 +359,8 @@ def train(config: Dict) -> Optional[str]:
                 sampler=val_subsampler,
             )
 
-            model = Model(config["model_name"])
+            # 사용할 모델에 맞게 변경해야함
+            model = Model.Type_Entity_SSOS_Model(config["model_name"])
 
             optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"])
 
