@@ -52,7 +52,7 @@ def inferencing(config, model, tokenizer, tokenized_sent, device) -> Tuple[List,
     with torch.no_grad():
         for i, (data, labels) in enumerate(tqdm(dataloader)):
             batch = {k: v.to(device) for k, v in data.items()}
-            # labels = {k: v.to(device) for k, v in labels.items()}
+            labels = {k: v.to(device) for k, v in labels.items()}
             # markers = {k: v.to(device) for k, v in markers.items()}
             output = model(batch, labels)
             logits = output[1]
@@ -67,16 +67,20 @@ def inferencing(config, model, tokenizer, tokenized_sent, device) -> Tuple[List,
             for pred in preds:
                 output_pred.append(pred)
 
-        prob = F.softmax(logits, dim=-1).detach().cpu().numpy()
-        logits = logits.detach().cpu().numpy()
+        # prob = F.softmax(logits, dim=-1).detach().cpu().numpy()
+        # logits = logits.detach().cpu().numpy()
         # result = np.argmax(logits, axis=-1)
 
         # output_pred.append(result)
-        output_prob.append(prob)
+        # output_prob.append(prob)
 
-    return (
-        np.concatenate(output_pred).tolist(),
-        np.concatenate(output_prob, axis=0).tolist(),
+    return output_pred
+    
+    (
+        # np.concatenate(output_pred).tolist(),
+        # np.concatenate(output_prob, axis=0).tolist(),
+        # output_pred,
+        # output_prob
     )
 
 
@@ -94,43 +98,46 @@ def num_to_label(label: List) -> List:
     List
         문자열 라벨 List
     """
-    def num_to_label(label:str):
-        label_list = {
+    label_list = {
         "00":"no_relation",
         "01":"org:top_members/employees",
-        "":"org:members",
-        "":"org:product",
-        "":"per:title",
-        "":"org:alternate_names",
-        "":"per:employee_of",
-        "":"org:place_of_headquarters",
-        "":"per:product",
-        "":"org:number_of_employees/members",
-        "":"per:children",
-        "":"per:place_of_residence",
-        "":"per:alternate_names",
-        "":"per:other_family",
-        "":"per:colleagues",
-        "":"per:origin",
-        "":"per:siblings",
-        "":"per:spouse",
-        "":"org:founded",
-        "":"org:political/religious_affiliation",
-        "":"org:member_of",
-        "":"per:parents",
-        "":"org:dissolved",
-        "":"per:schools_attended",
-        "":"per:date_of_death",
-        "":"per:date_of_birth",
-        "":"per:place_of_birth",
-        "":"per:place_of_death",
-        "":"org:founded_by",
-        "":"per:religion",
-        }
-    return str(label_list.index(label))
+        "02":"org:members",
+        "03":"org:product",
+        "04":"per:title",
+        "05":"org:alternate_names",
+        "06":"per:employee_of",
+        "07":"org:place_of_headquarters",
+        "08":"per:product",
+        "09":"org:number_of_employees/members",
+        "10":"per:children",
+        "11":"per:place_of_residence",
+        "12":"per:alternate_names",
+        "13":"per:other_family",
+        "14":"per:colleagues",
+        "15":"per:origin",
+        "16":"per:siblings",
+        "17":"per:spouse",
+        "18":"org:founded",
+        "19":"org:political/religious_affiliation",
+        "20":"org:member_of",
+        "21":"per:parents",
+        "22":"org:dissolved",
+        "23":"per:schools_attended",
+        "24":"per:date_of_death",
+        "25":"per:date_of_birth",
+        "26":"per:place_of_birth",
+        "27":"per:place_of_death",
+        "28":"org:founded_by",
+        "29":"per:religion",
+    }
 
-    return origin_label
-
+    re_labels=[]
+    for i in label:
+        if i in label_list:
+            re_labels.append(label_list[i]) 
+        else:
+            re_labels.append('not_in')
+    return list(re_labels)
 
 def load_test_dataset(
     dataset_dir: str, tokenizer: AutoTokenizer
@@ -153,12 +160,12 @@ def load_test_dataset(
     """
     df = pd.read_csv(dataset_dir)
 
-    Re_test_dataset = load_data.RE_Dataset(dataset_dir, tokenizer, "prediction")
+    Re_test_dataset = load_data.Dataset(dataset_dir, tokenizer, "prediction")
 
     return df["id"], Re_test_dataset
 
 
-def inference(config: Dict, model_path: str, tokenizer):
+def inference(config: Dict, model_path: str):
     """
     주어진 config와 model_path를 사용하여 모델을 inference를 한다.
 
@@ -197,9 +204,9 @@ def inference(config: Dict, model_path: str, tokenizer):
     test_dataset_dir = config["test_data_path"]
     test_id, Re_test_dataset = load_test_dataset(test_dataset_dir, tokenizer)
 
-    ## predict answer
-    pred_answer, output_prob = inferencing(
-        config, model, Re_test_dataset, device
+    ## predict answer output_prob
+    pred_answer = inferencing(
+        config, model, tokenizer, Re_test_dataset, device
     )  # model에서 class 추론
     pred_answer = num_to_label(pred_answer)  # 숫자로 된 class를 원래 문자열 라벨로 변환.
 
@@ -210,7 +217,7 @@ def inference(config: Dict, model_path: str, tokenizer):
         {
             "id": test_id,
             "pred_label": pred_answer,
-            "probs": output_prob,
+            # "probs": output_prob,
         }
     )
 
@@ -235,6 +242,6 @@ if __name__ == "__main__":
 
     # print(config)
 
-    model_path = "/opt/ml/nlp14/best_model/klue-roberta-large/klue-roberta-large_b8_e10_lr1e-05.bin"
+    model_path = "/opt/ml/level2_klue_nlp-14/best_model/KETI-AIR-ke-t5-base/KETI-AIR-ke-t5-base_b4_e6_lr0.0003.bin"
 
     inference(config, model_path)
