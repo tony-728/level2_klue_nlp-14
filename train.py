@@ -290,7 +290,7 @@ def training(
             wandb.log({"epoch": epoch_num}, step=num_steps)
             wandb.log({"eval_loss": val_loss}, step=num_steps)
             wandb.log({"eval_f1": metrics["micro f1 score"]}, step=num_steps)
-            wandb.log({"eval_auprc": metrics["auprc"]}, step=num_steps)
+            # wandb.log({"eval_auprc": metrics["auprc"]}, step=num_steps)
             wandb.log({"eval_accuracy": metrics["accuracy"]}, step=num_steps)
 
         # model save

@@ -11,6 +11,8 @@ def compute_loss(pred, labels):
 
 def compute_metrics(pred, labels):
     """validation을 위한 metrics function"""
+    print(pred)
+    print(labels)
     # labels = pred.label_ids
 
     # 원래 있던 형태
@@ -22,7 +24,7 @@ def compute_metrics(pred, labels):
 
     # calculate accuracy using sklearn's function
     f1 = klue_re_micro_f1(pred, labels)
-    auprc = klue_re_auprc(pred, labels)
+    # auprc = klue_re_auprc(pred, labels)
     acc = accuracy_score(pred, labels)  # 리더보드 평가에는 포함되지 않습니다.
 
     return {

@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification,
+    T5Tokenizer
 )
 
 import pandas as pd
@@ -21,7 +22,7 @@ from typing import Tuple, List, Dict
 import Model
 
 
-def inferencing(config, model, tokenized_sent, device) -> Tuple[List, List]:
+def inferencing(config, model, tokenizer, tokenized_sent, device) -> Tuple[List, List]:
     """
     test dataset을 DataLoader로 만들어 준 후,
     batch_size로 나눠 model이 예측 합니다.
@@ -44,22 +45,33 @@ def inferencing(config, model, tokenized_sent, device) -> Tuple[List, List]:
     dataloader = DataLoader(
         tokenized_sent, batch_size=config["batch_size"], shuffle=False
     )
+
     model.eval()
     output_pred = []
     output_prob = []
-    for i, (data, labels, markers) in enumerate(tqdm(dataloader)):
-        with torch.no_grad():
+    with torch.no_grad():
+        for i, (data, labels) in enumerate(tqdm(dataloader)):
             batch = {k: v.to(device) for k, v in data.items()}
-            markers = {k: v.to(device) for k, v in markers.items()}
+            # labels = {k: v.to(device) for k, v in labels.items()}
+            # markers = {k: v.to(device) for k, v in markers.items()}
+            output = model(batch, labels)
+            logits = output[1]
 
-            outputs = model(batch=batch, markers=markers)
+            generated_ids = model.generate(
+                    input_ids = batch['input_ids'],
+                    attention_mask = batch['attention_mask'],
+                    max_new_tokens = 3
+                )
+            preds = [tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=True)for g in generated_ids]
 
-        logits = outputs
+            for pred in preds:
+                output_pred.append(pred)
+
         prob = F.softmax(logits, dim=-1).detach().cpu().numpy()
         logits = logits.detach().cpu().numpy()
-        result = np.argmax(logits, axis=-1)
+        # result = np.argmax(logits, axis=-1)
 
-        output_pred.append(result)
+        # output_pred.append(result)
         output_prob.append(prob)
 
     return (
@@ -82,11 +94,40 @@ def num_to_label(label: List) -> List:
     List
         문자열 라벨 List
     """
-    origin_label = []
-    with open("dict_num_to_label.pkl", "rb") as f:
-        dict_num_to_label = pickle.load(f)
-    for v in label:
-        origin_label.append(dict_num_to_label[v])
+    def num_to_label(label:str):
+        label_list = {
+        "00":"no_relation",
+        "01":"org:top_members/employees",
+        "":"org:members",
+        "":"org:product",
+        "":"per:title",
+        "":"org:alternate_names",
+        "":"per:employee_of",
+        "":"org:place_of_headquarters",
+        "":"per:product",
+        "":"org:number_of_employees/members",
+        "":"per:children",
+        "":"per:place_of_residence",
+        "":"per:alternate_names",
+        "":"per:other_family",
+        "":"per:colleagues",
+        "":"per:origin",
+        "":"per:siblings",
+        "":"per:spouse",
+        "":"org:founded",
+        "":"org:political/religious_affiliation",
+        "":"org:member_of",
+        "":"per:parents",
+        "":"org:dissolved",
+        "":"per:schools_attended",
+        "":"per:date_of_death",
+        "":"per:date_of_birth",
+        "":"per:place_of_birth",
+        "":"per:place_of_death",
+        "":"org:founded_by",
+        "":"per:religion",
+        }
+    return str(label_list.index(label))
 
     return origin_label
 
@@ -117,7 +158,7 @@ def load_test_dataset(
     return df["id"], Re_test_dataset
 
 
-def inference(config: Dict, model_path: str):
+def inference(config: Dict, model_path: str, tokenizer):
     """
     주어진 config와 model_path를 사용하여 모델을 inference를 한다.
 
@@ -145,8 +186,7 @@ def inference(config: Dict, model_path: str):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # load tokenizer
     Model_NAME = config["model_name"]
-    tokenizer = AutoTokenizer.from_pretrained(Model_NAME)
-
+    tokenizer = T5Tokenizer.from_pretrained(config["model_name"])
     model = Model.Model(Model_NAME)
 
     model.load_state_dict(torch.load(model_path))

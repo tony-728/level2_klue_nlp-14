@@ -35,6 +35,7 @@ def preprocessing_dataset(dataset):
     object_entity = []
     preprocessed_sentences = []
     numbered_label = []
+    
     for i in dataset['label']:
         re_label = change_label(i)
         numbered_label.append(re_label)
