@@ -1,5 +1,6 @@
 import torch
 from torch import nn as nn
+import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoConfig, AutoModel
 import transformers
 from typing import Dict
@@ -133,6 +134,26 @@ class Type_Entity_LSTM_Model(nn.Module):
         return logits
 
 
+class SimplePooler(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.dense1 = nn.Linear(config.d_model, config.d_model)
+        self.dense2 = nn.Linear(config.d_model, config.d_model)
+        self.dropout = nn.Dropout(config.dropout_rate)
+
+    def forward(self, hidden_states):
+        # hidden states: [batch_size, seq, model_dim]
+        # attention masks: [batch_size, seq, 1]
+        first_token_tensor = hidden_states[:, 0]
+
+        pooled_output = self.dense1(first_token_tensor)
+        pooled_output = F.relu(pooled_output)
+        pooled_output = self.dropout(pooled_output)
+        pooled_output = self.dense2(pooled_output)
+
+        return pooled_output
+
+
 class Type_Entity_LSTM_T5Model(nn.Module):
     def __init__(self, model_name: str):
         super().__init__()
@@ -172,5 +193,74 @@ class Type_Entity_LSTM_T5Model(nn.Module):
         # fb_hidden : (batch, hidden_dim * 2)
 
         logits = self.classifier(fb_hidden)
+
+        return logits
+
+
+class Entity_Model(nn.Module):
+    def __init__(self, model_name: str):
+        super().__init__()
+        self.model = transformers.T5EncoderModel.from_pretrained(model_name)
+        hidden_size = self.model.config.hidden_size
+        self.num_labels = 30
+
+        self.model_dim = self.model.config.d_model
+
+        self.pooler = SimplePooler(self.model.config)
+        self.dropout = nn.Dropout(0.1)
+        self.fc_layer = nn.Sequential(nn.Linear(self.model_dim, self.model_dim))
+        self.classifier = nn.Sequential(nn.Linear(self.model_dim * 3, self.num_labels))
+
+    def forward(self, batch, markers):
+        outputs = self.model(**batch)
+
+        pooled_output = outputs.last_hidden_state
+
+        # CLS -> pooler layer
+        last_hidden_state = outputs[0]
+        pooled_output = self.pooler(last_hidden_state)
+        pooled_output = self.dropout(pooled_output)
+
+        sub_output = []
+        obj_output = []
+
+        for _ in range(last_hidden_state.size(0)):  # 배치단위로 가져옴
+            ss = markers["ss"][_]
+            se = markers["se"][_]
+            os = markers["os"][_]
+            oe = markers["oe"][_]
+            sub_output.append(
+                torch.mean(last_hidden_state[_, ss:se, :], dim=0).unsqueeze(
+                    0
+                )  # 8, 1024 -> fc 8, 1024
+            )  # (768) # [batch_size, seqence_length, ...?]
+            obj_output.append(
+                torch.mean(last_hidden_state[_, os:oe, :], dim=0).unsqueeze(0)
+            )  # (768)
+
+        # for b_idx, entity_idx in enumerate(entity_token_idx): # entity_tokenz_idx 어케했누
+        #     sub_entity_idx, obj_entity_idx = entity_idx
+        #     sub_hidden = last_hidden_state[
+        #         b_idx, sub_entity_idx[0] : sub_entity_idx[1], :  # [batch_size, sequence_length, model_dimension]
+        #     ]
+        #     sub_hidden_mean = torch.mean(sub_hidden, 0)
+        #     sub_output.append(sub_hidden_mean.unsqueeze(0))
+
+        #     obj_hidden = last_hidden_state[
+        #         b_idx, obj_entity_idx[0] : obj_entity_idx[1], :
+        #     ]
+        #     obj_hidden_mean = torch.mean(obj_hidden, 0)
+        #     obj_output.append(obj_hidden_mean.unsqueeze(0))
+
+        sub_hidden_mean_cat = self.fc_layer(torch.cat((sub_output)))
+        sub_hidden_mean_cat = self.dropout(sub_hidden_mean_cat)
+        obj_hidden_mean_cat = self.fc_layer(torch.cat((obj_output)))
+        obj_hidden_mean_cat = self.dropout(obj_hidden_mean_cat)
+
+        entities_concat = torch.cat(
+            [pooled_output, sub_hidden_mean_cat, obj_hidden_mean_cat], dim=-1
+        )
+
+        logits = self.classifier(entities_concat)
 
         return logits

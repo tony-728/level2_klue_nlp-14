@@ -122,26 +122,16 @@ def preprocessing_dataset(dataset):
         se = subj_dict["end_idx"]
         os = obj_dict["start_idx"]
         oe = obj_dict["end_idx"]
-        st = type_en_ko[subj_dict["type"]]
-        ot = type_en_ko[obj_dict["type"]]
-
-        # subject와 object의 관계
-        t_sentence = f"{subj_dict['word']}와 {obj_dict['word']}의 관계는 무엇인가?"
-        task_sentence.append(t_sentence)
 
         if os < ss:
             preprocessed_sentences.append(
                 (
                     k[:os]
-                    + " ^ ◇ "
-                    + ot
-                    + " ◇ "
+                    + " ^ "
                     + k[os : oe + 1]
                     + " ^ "
                     + k[oe + 1 : ss]
-                    + " @ □ "
-                    + st
-                    + " □ "
+                    + " @ "
                     + k[ss : se + 1]
                     + " @ "
                     + k[se + 1 :]
@@ -151,20 +141,60 @@ def preprocessing_dataset(dataset):
             preprocessed_sentences.append(
                 (
                     k[:ss]
-                    + " @ □ "
-                    + st
-                    + " □ "
+                    + " @ "
                     + k[ss : se + 1]
                     + " @ "
                     + k[se + 1 : os]
-                    + " ^ ◇ "
-                    + ot
-                    + " ◇ "
+                    + " ^ "
                     + k[os : oe + 1]
                     + " ^ "
-                    + k[se + 1 :]
+                    + k[oe + 1 :]
                 )
             )
+
+        # st = type_en_ko[subj_dict["type"]]
+        # ot = type_en_ko[obj_dict["type"]]
+
+        # subject와 object의 관계
+        # t_sentence = f"{subj_dict['word']}와 {obj_dict['word']}의 관계는 무엇인가?"
+        # task_sentence.append(t_sentence)
+
+        # if os < ss:
+        #     preprocessed_sentences.append(
+        #         (
+        #             k[:os]
+        #             + " ^ ◇ "
+        #             + ot
+        #             + " ◇ "
+        #             + k[os : oe + 1]
+        #             + " ^ "
+        #             + k[oe + 1 : ss]
+        #             + " @ □ "
+        #             + st
+        #             + " □ "
+        #             + k[ss : se + 1]
+        #             + " @ "
+        #             + k[se + 1 :]
+        #         )
+        #     )
+        # else:
+        #     preprocessed_sentences.append(
+        #         (
+        #             k[:ss]
+        #             + " @ □ "
+        #             + st
+        #             + " □ "
+        #             + k[ss : se + 1]
+        #             + " @ "
+        #             + k[se + 1 : os]
+        #             + " ^ ◇ "
+        #             + ot
+        #             + " ◇ "
+        #             + k[os : oe + 1]
+        #             + " ^ "
+        #             + k[se + 1 :]
+        #         )
+        #     )
         """
         if want to use entity's type
         subj_type = i['type']
@@ -174,7 +204,6 @@ def preprocessing_dataset(dataset):
         {
             "id": dataset["id"],
             "sentence": preprocessed_sentences,
-            "task_sentence": task_sentence,
             "subject_entity": subject_entity,
             "object_entity": object_entity,
             "label": dataset["label"],
@@ -186,7 +215,6 @@ def preprocessing_dataset(dataset):
 def tokenize_dataset(dataset, tokenizer):
 
     tokenized_sentences = tokenizer(
-        dataset["task_sentence"].tolist(),
         dataset["sentence"].tolist(),
         return_tensors="pt",
         padding="max_length",
@@ -202,7 +230,8 @@ def get_marker_idx(input_ids_list, tokenizer, subj_marker, obj_marker):
         tokenizer.encode(subj_marker, add_special_tokens=False, return_tensors="pt")
     )
     obj_marker_ids = int(
-        tokenizer.encode(obj_marker, add_special_tokens=False, return_tensors="pt")
+        # tokenizer.encode(obj_marker, add_special_tokens=False, return_tensors="pt")
+        34824
     )
     marker_idx = {"ss": [], "se": [], "os": [], "oe": []}
     for input_ids in input_ids_list:
@@ -218,10 +247,12 @@ def get_marker_idx(input_ids_list, tokenizer, subj_marker, obj_marker):
             print(tokenizer.decode(torch.tensor(tmp)))
             # print(f"obj marker {obj_marker} is wrong value try another marker!")
             # exit()
-        marker_idx["ss"].append(subjs[0])
-        marker_idx["se"].append(subjs[1])
-        marker_idx["os"].append(objs[0])
-        marker_idx["oe"].append(objs[1])
+
+        # entity만 사용하도록 바꿈
+        marker_idx["ss"].append(subjs[0] + 1)  # entity를 가리키게 됨
+        marker_idx["se"].append(subjs[1])  # ^
+        marker_idx["os"].append(objs[0] + 1)  # entity를 가리키게 됨
+        marker_idx["oe"].append(objs[1])  # @
 
     return marker_idx
 
