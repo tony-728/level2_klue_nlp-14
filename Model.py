@@ -112,7 +112,7 @@ class Type_Entity_LSTM_Model(nn.Module):
             nn.Linear(hidden_size, 30),
         )
 
-    def forward(self, batch, markers):
+    def forward(self, batch):
         outputs = self.model(**batch)
 
         pooled_output = (
