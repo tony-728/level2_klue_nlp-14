@@ -13,9 +13,9 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 class Original_Dataset(Dataset):
-    def __init__(self, data_path, tokenizer, mode="train"):
+    def __init__(self, data_path, tokenizer, mode="train", data_mode="entity"):
         pd_dataset = pd.read_csv(data_path)
-        raw_dataset = preprocessing_dataset(pd_dataset)
+        raw_dataset = preprocessing_dataset(pd_dataset, data_mode=data_mode)
         raw_labels = raw_dataset["label"].values
 
         self.data = tokenize_dataset(raw_dataset, tokenizer)
@@ -38,9 +38,9 @@ class Original_Dataset(Dataset):
 
 
 class RE_Dataset(Dataset):
-    def __init__(self, data_path, tokenizer, mode="train"):
+    def __init__(self, data_path, tokenizer, mode="train", data_mode="entity"):
         pd_dataset = pd.read_csv(data_path)
-        raw_dataset = preprocessing_dataset(pd_dataset)
+        raw_dataset = preprocessing_dataset(pd_dataset, data_mode=data_mode)
         raw_labels = raw_dataset["label"].values
 
         self.data = tokenize_dataset(raw_dataset, tokenizer)
@@ -67,148 +67,137 @@ class RE_Dataset(Dataset):
         return len(self.labels)
 
 
-class RE_Dataset_for_T5(Dataset):
-    def __init__(self, data_path, tokenizer, mode="train"):
-        pd_dataset = pd.read_csv(data_path)
-        raw_dataset = preprocessing_dataset(pd_dataset)
-        raw_labels = raw_dataset["label"].values
-
-        self.data = tokenize_dataset(raw_dataset, tokenizer)
-
-        if mode == "train":
-            self.labels = label_to_num(raw_labels)
-        elif mode == "prediction":
-            self.labels = list(map(int, raw_labels))
-        else:
-            print("check your mode")
-            exit()
-
-    def __getitem__(self, idx):
-        item = {key: val[idx].clone().detach() for key, val in self.data.items()}
-        labels = torch.tensor(self.labels[idx])
-        return item, labels
-
-    def __len__(self):
-        return len(self.labels)
-
-
-def preprocessing_dataset(dataset):
+def preprocessing_dataset(dataset, data_mode="entity"):
     subject_entity = []
     object_entity = []
     preprocessed_sentences = []
-
-    # T5에게 줄 tast 문장장
-    task_sentence = []
+    task_sentence = []  # T5에게 줄 tast 문장
 
     for i, j, k in zip(
         dataset["subject_entity"], dataset["object_entity"], dataset["sentence"]
     ):
+        """
+        if want to use entity's type
+        subj_type = i['type']
+        obj_type = j['type']
+        """
+
         subj_dict = eval(i)
         obj_dict = eval(j)
 
         subject_entity.append(subj_dict["word"])
         object_entity.append(obj_dict["word"])
 
-        type_en_ko = {
-            "PER": "사람",
-            "ORG": "단체",
-            "POH": "기타",
-            "DAT": "날짜",
-            "LOC": "장소",
-            "NOH": "수량",
-        }
-
         ss = subj_dict["start_idx"]
         se = subj_dict["end_idx"]
         os = obj_dict["start_idx"]
         oe = obj_dict["end_idx"]
 
-        if os < ss:
-            preprocessed_sentences.append(
-                (
-                    k[:os]
-                    + " ^ "
-                    + k[os : oe + 1]
-                    + " ^ "
-                    + k[oe + 1 : ss]
-                    + " @ "
-                    + k[ss : se + 1]
-                    + " @ "
-                    + k[se + 1 :]
+        if data_mode == "entity":
+            if os < ss:
+                preprocessed_sentences.append(
+                    (
+                        k[:os]
+                        + " ^ "
+                        + k[os : oe + 1]
+                        + " ^ "
+                        + k[oe + 1 : ss]
+                        + " @ "
+                        + k[ss : se + 1]
+                        + " @ "
+                        + k[se + 1 :]
+                    )
                 )
-            )
-        else:
-            preprocessed_sentences.append(
-                (
-                    k[:ss]
-                    + " @ "
-                    + k[ss : se + 1]
-                    + " @ "
-                    + k[se + 1 : os]
-                    + " ^ "
-                    + k[os : oe + 1]
-                    + " ^ "
-                    + k[oe + 1 :]
+            else:
+                preprocessed_sentences.append(
+                    (
+                        k[:ss]
+                        + " @ "
+                        + k[ss : se + 1]
+                        + " @ "
+                        + k[se + 1 : os]
+                        + " ^ "
+                        + k[os : oe + 1]
+                        + " ^ "
+                        + k[oe + 1 :]
+                    )
                 )
+
+            output_dataset = pd.DataFrame(
+                {
+                    "id": dataset["id"],
+                    "sentence": preprocessed_sentences,
+                    "subject_entity": subject_entity,
+                    "object_entity": object_entity,
+                    "label": dataset["label"],
+                }
             )
 
-        # st = type_en_ko[subj_dict["type"]]
-        # ot = type_en_ko[obj_dict["type"]]
+        elif data_mode == "type_entity":
+            type_en_ko = {
+                "PER": "사람",
+                "ORG": "단체",
+                "POH": "기타",
+                "DAT": "날짜",
+                "LOC": "장소",
+                "NOH": "수량",
+            }
+            st = type_en_ko[subj_dict["type"]]
+            ot = type_en_ko[obj_dict["type"]]
 
-        # subject와 object의 관계
-        # t_sentence = f"{subj_dict['word']}와 {obj_dict['word']}의 관계는 무엇인가?"
-        # task_sentence.append(t_sentence)
+            # subject와 object의 관계
+            # T5에서 사용할 문장
+            t_sentence = f"{subj_dict['word']}와 {obj_dict['word']}의 관계는 무엇인가?: "
+            task_sentence.append(t_sentence)
 
-        # if os < ss:
-        #     preprocessed_sentences.append(
-        #         (
-        #             k[:os]
-        #             + " ^ ◇ "
-        #             + ot
-        #             + " ◇ "
-        #             + k[os : oe + 1]
-        #             + " ^ "
-        #             + k[oe + 1 : ss]
-        #             + " @ □ "
-        #             + st
-        #             + " □ "
-        #             + k[ss : se + 1]
-        #             + " @ "
-        #             + k[se + 1 :]
-        #         )
-        #     )
-        # else:
-        #     preprocessed_sentences.append(
-        #         (
-        #             k[:ss]
-        #             + " @ □ "
-        #             + st
-        #             + " □ "
-        #             + k[ss : se + 1]
-        #             + " @ "
-        #             + k[se + 1 : os]
-        #             + " ^ ◇ "
-        #             + ot
-        #             + " ◇ "
-        #             + k[os : oe + 1]
-        #             + " ^ "
-        #             + k[se + 1 :]
-        #         )
-        #     )
-        """
-        if want to use entity's type
-        subj_type = i['type']
-        obj_type = j['type']
-        """
-    output_dataset = pd.DataFrame(
-        {
-            "id": dataset["id"],
-            "sentence": preprocessed_sentences,
-            "subject_entity": subject_entity,
-            "object_entity": object_entity,
-            "label": dataset["label"],
-        }
-    )
+            if os < ss:
+                preprocessed_sentences.append(
+                    (
+                        k[:os]
+                        + " ^ ◇ "
+                        + ot
+                        + " ◇ "
+                        + k[os : oe + 1]
+                        + " ^ "
+                        + k[oe + 1 : ss]
+                        + " @ □ "
+                        + st
+                        + " □ "
+                        + k[ss : se + 1]
+                        + " @ "
+                        + k[se + 1 :]
+                    )
+                )
+            else:
+                preprocessed_sentences.append(
+                    (
+                        k[:ss]
+                        + " @ □ "
+                        + st
+                        + " □ "
+                        + k[ss : se + 1]
+                        + " @ "
+                        + k[se + 1 : os]
+                        + " ^ ◇ "
+                        + ot
+                        + " ◇ "
+                        + k[os : oe + 1]
+                        + " ^ "
+                        + k[se + 1 :]
+                    )
+                )
+
+            output_dataset = pd.DataFrame(
+                {
+                    "id": dataset["id"],
+                    "t_sentence": t_sentence,
+                    "sentence": preprocessed_sentences,
+                    "subject_entity": subject_entity,
+                    "object_entity": object_entity,
+                    "label": dataset["label"],
+                }
+            )
+
     return output_dataset
 
 
@@ -230,8 +219,7 @@ def get_marker_idx(input_ids_list, tokenizer, subj_marker, obj_marker):
         tokenizer.encode(subj_marker, add_special_tokens=False, return_tensors="pt")
     )
     obj_marker_ids = int(
-        # tokenizer.encode(obj_marker, add_special_tokens=False, return_tensors="pt")
-        34824
+        tokenizer.encode(obj_marker, add_special_tokens=False, return_tensors="pt")
     )
     marker_idx = {"ss": [], "se": [], "os": [], "oe": []}
     for input_ids in input_ids_list:
