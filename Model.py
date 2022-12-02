@@ -8,6 +8,15 @@ from typing import Dict
 
 class Type_Entity_Mean_Model(nn.Module):
     def __init__(self, model_name: str):
+        """
+        type_entity에 대한 hidden state vector의 평균을
+        classifier에 사용
+
+        Parameters
+        ----------
+        model_name : str
+            _description_
+        """
         super().__init__()
         self.model = AutoModel.from_pretrained(model_name)
         hidden_size = self.model.config.hidden_size
@@ -45,6 +54,15 @@ class Type_Entity_Mean_Model(nn.Module):
 
 class Type_Entity_SSOS_Model(nn.Module):
     def __init__(self, model_name: str):
+        """
+        type_entity에 대한 hidden state vector만을
+        classifier에 사용
+
+        Parameters
+        ----------
+        model_name : str
+            _description_
+        """
         super().__init__()
         self.model = AutoModel.from_pretrained(model_name)
         hidden_size = self.model.config.hidden_size
@@ -75,6 +93,15 @@ class Type_Entity_SSOS_Model(nn.Module):
 
 class Type_Entity_LSTM_Model(nn.Module):
     def __init__(self, model_name: str):
+        """
+        type_entity에 대한 전체 hidden state vector를
+        BiLSTM layer를 통과하여 classifier에 사용
+
+        Parameters
+        ----------
+        model_name : str
+            _description_
+        """
         super().__init__()
         self.model = AutoModel.from_pretrained(model_name)
         hidden_size = self.model.config.hidden_size
@@ -118,6 +145,15 @@ class Type_Entity_LSTM_Model(nn.Module):
 
 class Type_Entity_LSTM_T5Model(nn.Module):
     def __init__(self, model_name: str):
+        """
+        T5 encoder로 나온 전체 hidden state vector를
+        BiLSTM layer를 통과하여 classifier에 사용
+
+        Parameters
+        ----------
+        model_name : str
+            _description_
+        """
         super().__init__()
         self.model = transformers.T5EncoderModel.from_pretrained(model_name)
         hidden_size = self.model.config.hidden_size
@@ -181,6 +217,16 @@ class SimplePooler(nn.Module):
 
 class Entity_Mean_T5Model(nn.Module):
     def __init__(self, model_name: str):
+        """
+        T5 encoder로 나온 CLS, type_entity에 대한 hidden state vector를
+        simplepooler layer를 통과한 후 classifier에 사용
+        (type_entity에 대한 hidden vector는 평균하여 사용)
+
+        Parameters
+        ----------
+        model_name : str
+            _description_
+        """
         super().__init__()
         self.model = transformers.T5EncoderModel.from_pretrained(model_name)
         self.num_labels = 30
