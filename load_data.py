@@ -14,6 +14,20 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 class Original_Dataset(Dataset):
     def __init__(self, data_path, tokenizer, mode="train", data_mode="entity"):
+        """
+        Dataset 정의
+
+        Parameters
+        ----------
+        data_path : _type_
+            사용할 데이터 셋 path
+        tokenizer : _type_
+            사용할 tokenizer
+        mode : str, optional
+            데이터 셋 사용 목적, by default "train"
+        data_mode : str, optional
+            데이터 셋 전처리 mode, by default "entity"
+        """
         pd_dataset = pd.read_csv(data_path)
         raw_dataset = preprocessing_dataset(pd_dataset, data_mode=data_mode)
         raw_labels = raw_dataset["label"].values
@@ -39,6 +53,21 @@ class Original_Dataset(Dataset):
 
 class RE_Dataset(Dataset):
     def __init__(self, data_path, tokenizer, mode="train", data_mode="entity"):
+        """
+        Dataset 정의
+        marker를 사용하는 Dataset
+
+        Parameters
+        ----------
+        data_path : _type_
+            사용할 데이터 셋 path
+        tokenizer : _type_
+            사용할 tokenizer
+        mode : str, optional
+            데이터 셋 사용 목적, by default "train"
+        data_mode : str, optional
+            데이터 셋 전처리 mode, by default "entity"
+        """
         pd_dataset = pd.read_csv(data_path)
         raw_dataset = preprocessing_dataset(pd_dataset, data_mode=data_mode)
         raw_labels = raw_dataset["label"].values
