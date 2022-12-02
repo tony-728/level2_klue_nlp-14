@@ -123,16 +123,6 @@ def preprocessing_dataset(dataset, data_mode="entity"):
                     )
                 )
 
-            output_dataset = pd.DataFrame(
-                {
-                    "id": dataset["id"],
-                    "sentence": preprocessed_sentences,
-                    "subject_entity": subject_entity,
-                    "object_entity": object_entity,
-                    "label": dataset["label"],
-                }
-            )
-
         elif data_mode == "type_entity":
             type_en_ko = {
                 "PER": "사람",
@@ -147,8 +137,8 @@ def preprocessing_dataset(dataset, data_mode="entity"):
 
             # subject와 object의 관계
             # T5에서 사용할 문장
-            t_sentence = f"{subj_dict['word']}와 {obj_dict['word']}의 관계는 무엇인가?: "
-            task_sentence.append(t_sentence)
+            # t_sentence = f"{subj_dict['word']}와 {obj_dict['word']}의 관계는 무엇인가?: "
+            # task_sentence.append(t_sentence)
 
             if os < ss:
                 preprocessed_sentences.append(
@@ -187,16 +177,16 @@ def preprocessing_dataset(dataset, data_mode="entity"):
                     )
                 )
 
-            output_dataset = pd.DataFrame(
-                {
-                    "id": dataset["id"],
-                    "t_sentence": t_sentence,
-                    "sentence": preprocessed_sentences,
-                    "subject_entity": subject_entity,
-                    "object_entity": object_entity,
-                    "label": dataset["label"],
-                }
-            )
+    output_dataset = pd.DataFrame(
+        {
+            "id": dataset["id"],
+            # "t_sentence": t_sentence,
+            "sentence": preprocessed_sentences,
+            "subject_entity": subject_entity,
+            "object_entity": object_entity,
+            "label": dataset["label"],
+        }
+    )
 
     return output_dataset
 
@@ -219,7 +209,9 @@ def get_marker_idx(input_ids_list, tokenizer, subj_marker, obj_marker):
         tokenizer.encode(subj_marker, add_special_tokens=False, return_tensors="pt")
     )
     obj_marker_ids = int(
-        tokenizer.encode(obj_marker, add_special_tokens=False, return_tensors="pt")
+        tokenizer.encode(obj_marker, add_special_tokens=False, return_tensors="pt")[0][
+            -1
+        ]
     )
     marker_idx = {"ss": [], "se": [], "os": [], "oe": []}
     for input_ids in input_ids_list:
