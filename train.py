@@ -84,8 +84,13 @@ def set_train(config: Dict):
     """
     tokenizer = AutoTokenizer.from_pretrained(config["model_name"])
 
-    # dataset 변경해야함
-    train_dataset = load_data.RE_Dataset(config["train_data_path"], tokenizer)
+    # marker 사용 여부에 따라서 변경해야함
+    train_dataset = load_data.RE_Dataset(
+        config["train_data_path"], tokenizer, mode="train", data_mode="entity"
+    )
+    # train_dataset = load_data.Original_Dataset(
+    #     config["train_data_path"], tokenizer, mode="train, data_mode="entity"
+    # )
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset, batch_size=config["batch_size"], shuffle=True
     )
@@ -103,15 +108,20 @@ def set_train(config: Dict):
 
         return kf, train_dataset
 
-    # dataset 변경해야함
-    val_dataset = load_data.RE_Dataset(config["val_data_path"], tokenizer)
+    # marker 사용 여부에 따라서 변경해야함
+    val_dataset = load_data.RE_Dataset(
+        config["val_data_path"], tokenizer, mode="train", data_mode="entity"
+    )
+    # val_dataset = load_data.Original_Dataset(
+    #     config["val_data_path"], tokenizer, mode="train", data_mode="entity"
+    # )
     val_dataloader = torch.utils.data.DataLoader(
         val_dataset, batch_size=config["batch_size"], shuffle=False
     )
 
     # 사용할 모델을 변경해야함
-    model = Model.Entity_Model(config["model_name"])
-    optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"], eps=1e-06)
+    model = Model.Entity_Mean_T5Model(config["model_name"])
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"])
 
     return model, train_dataloader, val_dataloader, optimizer
 
@@ -182,14 +192,18 @@ def training(
         epoch_loss = []
         running_loss = 0.0
         with tqdm(train_dataloader, unit="batch") as tepoch:
-            for step, (item, labels, markers) in enumerate(
-                tepoch
-            ):  # marker를 사용하려면 추가해야함
+            # marker를 사용하려면 추가해야함
+            for step, (item, labels, markers) in enumerate(tepoch):
                 tepoch.set_description(f"Epoch {epoch_num}")
 
                 batch = {k: v.to(device) for k, v in item.items()}
-                # markers = {k: v.to(device) for k, v in markers.items()} # marker를 사용하려면 추가해야함
+                markers = {
+                    k: v.to(device) for k, v in markers.items()
+                }  # marker를 사용하려면 추가해야함
+
+                # pred = model(batch) # marker 사용에 따라서 확인해야함
                 pred = model(batch, markers)
+
                 loss = compute_loss(pred, labels.to(device))
 
                 loss = loss / accumulation_step
@@ -235,10 +249,15 @@ def training(
         val_labels = []
         model.eval()
         with torch.no_grad():
+            # marker 사용 확인
             for i, (item, labels, markers) in enumerate(
                 tqdm(val_dataloader, desc="Eval")
-            ):  # marker 사용 확인
+            ):
                 batch = {k: v.to(device) for k, v in item.items()}
+                # marker를 사용하려면 추가해야함
+                markers = {k: v.to(device) for k, v in markers.items()}
+
+                # pred = model(batch) # marker 사용에 따라서 확인해야함
                 pred = model(batch, markers)  # marker 사용 확인
 
                 val_pred.append(pred)
@@ -257,15 +276,15 @@ def training(
         print(f"epoch: {epoch_num} val loss: {val_loss:.3f}")
 
         # 시각화
-        # if not config["k-fold"]:
-        # visualization_base(
-        #     config["val_data_path"],
-        #     val_pred,
-        #     val_labels,
-        #     epoch_num,
-        #     metrics,
-        #     val_loss,
-        # )
+        if not config["k-fold"]:
+            visualization_base(
+                config["val_data_path"],
+                val_pred,
+                val_labels,
+                epoch_num,
+                metrics,
+                val_loss,
+            )
 
         # wandb logging
         if config["wandb"]:
@@ -277,19 +296,19 @@ def training(
 
         # model save
         if not config["k-fold"]:
-            # if metrics["micro f1 score"] > highest_valid_f1:
-            save_model_dir = f"./best_model/{project}"
-            if utils.create_directory(save_model_dir):
-                save_model_path = f"{save_model_dir}/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}_{epoch_num}.bin"
-                # print(
-                #     "micro f1 score for model which have higher micro f1 score: ",
-                #     metrics["micro f1 score"],
-                # )
-                torch.save(
-                    model.state_dict(),
-                    save_model_path,
-                )
-                # highest_valid_f1 = metrics["micro f1 score"]
+            if metrics["micro f1 score"] > highest_valid_f1:
+                save_model_dir = f"./best_model/{project}"
+                if utils.create_directory(save_model_dir):
+                    save_model_path = f"{save_model_dir}/{project}_b{config['batch_size']}_e{config['epoch']}_lr{config['lr']}_{epoch_num}.bin"
+                    print(
+                        "micro f1 score for model which have higher micro f1 score: ",
+                        metrics["micro f1 score"],
+                    )
+                    torch.save(
+                        model.state_dict(),
+                        save_model_path,
+                    )
+                    highest_valid_f1 = metrics["micro f1 score"]
 
     if config["k-fold"]:
         # 마지막 validation loss, metrics 리턴
